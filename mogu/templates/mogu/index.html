@@ -1,0 +1,705 @@
+{% extends 'mogu/base.html' %}
+{% block title %}捡蘑菇模拟器{% endblock title %}
+
+{% block extra_head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{overflow:hidden;background:#222;color:#fff;touch-action:manipulation;user-select:none;transition:background .8s ease,color .8s ease}
+body::after{content:"";position:absolute;left:0;right:0;bottom:0;height:80px;background:linear-gradient(to top,rgba(0,0,0,.35),transparent);pointer-events:none;z-index:5}
+:root{--line-color:#fff;--bg-overlay:rgba(0,0,0,.65);--gld:linear-gradient(140deg,#1a2f20,#2c4432);--grd:linear-gradient(140deg,#243828,#39573b);--gll:linear-gradient(140deg,#e8f1e8,#d4e2d4);--grl:linear-gradient(140deg,#dce9dc,#c9dac9);--m1a:#c0392b;--m1b:#7b241c;--m2a:#7d3c98;--m2b:#4a235a;--m3a:#2471a3;--m3b:#154360;--m4a:#1e8449;--m4b:#0e3d22}
+body.light-mode{background:#f6f6f6;color:#111;--line-color:#666;--bg-overlay:rgba(255,255,255,.72);--m1a:#e67e22;--m1b:#d35400;--m2a:#f1c40f;--m2b:#d4ac0d;--m3a:#e91e63;--m3b:#ad1457;--m4a:#00acc1;--m4b:#00838f}
+canvas{display:block;background:#365a36;pointer-events:none;position:absolute;top:0;left:0;z-index:1}
+.bg-layer{position:absolute;width:100vw;height:100vh;top:0;left:0;z-index:0;pointer-events:none;overflow:hidden;opacity:0;transition:opacity 1.6s ease-in-out}
+.bg-layer.load-show{opacity:1}
+.bg-image-box{position:absolute;width:100%;height:100%;display:flex;gap:8px;padding:10px}
+.bg-card{flex:1;border-radius:18px;position:relative;overflow:hidden}
+.bg-card.left{background:var(--gld)}.bg-card.right{background:var(--grd)}
+body.light-mode .bg-card.left{background:var(--gll)}body.light-mode .bg-card.right{background:var(--grl)}
+.bg-divider{position:absolute;left:50%;top:0;width:2px;height:100%;background:var(--line-color);transform:translateX(-50%);opacity:.45}
+.bg-mask{position:absolute;inset:0;background:var(--bg-overlay)}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(20,40,20,.96);padding:20px;z-index:90;opacity:0;pointer-events:none;transition:opacity .5s ease,transform .5s ease;transform:scale(.97);overflow-y:auto}
+body.light-mode .screen{background:rgba(240,245,240,.94);color:#111}
+.screen.active{opacity:1;pointer-events:auto;transform:scale(1)}
+.mushroom-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.mushroom-layer{position:absolute;inset:0;opacity:0;animation:mushFade 10s infinite ease-in-out}
+.mushroom-layer.layer2{animation-delay:5s}
+@keyframes mushFade{0%{opacity:0}10%{opacity:.55}45%{opacity:.55}55%{opacity:0}100%{opacity:0}}
+.mushroom-deco{position:absolute}
+.mushroom-cap{border-radius:50% 50% 12px 12px;position:relative;box-shadow:inset 0 -8px 12px rgba(0,0,0,.25)}
+.mushroom-stem{background:linear-gradient(180deg,#fdf2dc,#e8d5a8);border-radius:0 0 10px 10px;margin:0 auto;box-shadow:inset -4px 0 6px rgba(0,0,0,.12)}
+.mushroom-spot{position:absolute;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+#homeScreen>*:not(.mushroom-bg){position:relative;z-index:1}
+h1{font-size:28px;margin-bottom:12px;text-align:center}
+h2{font-size:26px;margin-bottom:16px;text-align:center}
+h3{font-size:18px;margin:10px 0 6px}
+.desc{font-size:16px;margin-bottom:20px;text-align:center;line-height:1.6;min-height:60px}
+.btn{width:240px;padding:14px 0;margin:8px;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;touch-action:manipulation;transition:transform .15s,box-shadow .4s ease}
+.btn:active{transform:scale(.94)}
+.btn-blue{background:#3488eb;color:#fff}.btn-green{background:#36b962;color:#fff}.btn-yellow{background:#e6bc2e;color:#111}.btn-dl{background:#8e44ad;color:#fff}
+body.light-mode .btn{box-shadow:0 0 14px rgba(120,180,255,.45),0 2px 8px rgba(0,0,0,.1)}
+body.light-mode .btn-blue{box-shadow:0 0 16px rgba(52,136,235,.5)}
+body.light-mode .btn-green{box-shadow:0 0 16px rgba(54,185,98,.5)}
+body.light-mode .btn-yellow{box-shadow:0 0 16px rgba(230,188,46,.5)}
+body.light-mode .btn-dl{box-shadow:0 0 16px rgba(142,68,173,.5)}
+.terrain-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;max-width:480px}
+.terrain-btn{padding:16px;border-radius:10px;border:0;font-size:16px;cursor:pointer;background:#88cc88;color:#000;transition:box-shadow .3s}
+.terrain-btn.selected{outline:3px solid #fff;box-shadow:0 0 12px rgba(255,255,255,.5)}
+#joystick{position:absolute;left:24px;bottom:24px;width:300px;height:300px;background:rgba(255,255,255,.18);border-radius:50%;touch-action:none;z-index:80;display:none}
+#joystick-knob{position:absolute;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,.6);left:50%;top:50%;transform:translate(-50%,-50%)}
+.game-ui{position:absolute;top:10px;left:10px;z-index:99;display:none}
+.game-ui .gear-btn{padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-size:20px;background:#555;color:#fff;margin-bottom:6px}
+.game-settings-menu{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.game-settings-menu button{width:200px;padding:14px 0;border-radius:10px;border:0;cursor:pointer;font-size:17px;font-weight:bold;color:#fff;transition:transform .12s,box-shadow .3s}
+.game-settings-menu button:active{transform:scale(.95)}
+.menu-rain{background:#4a9eff;box-shadow:0 2px 10px rgba(74,158,255,.5)}
+.menu-bag{background:#9966ff;box-shadow:0 2px 10px rgba(153,102,255,.5)}
+.menu-theme{background:#888;box-shadow:0 2px 10px rgba(136,136,136,.4)}
+.menu-return{background:#27ae60;box-shadow:0 2px 10px rgba(39,174,96,.5)}
+body.light-mode .menu-rain{box-shadow:0 0 16px rgba(74,158,255,.6)}
+body.light-mode .menu-bag{box-shadow:0 0 16px rgba(153,102,255,.6)}
+body.light-mode .menu-return{box-shadow:0 0 16px rgba(39,174,96,.6)}
+.bar-wrap{width:210px;margin:6px 0}
+.bar-label{font-size:14px;margin-bottom:3px;text-shadow:1px 1px 2px #000}
+.bar-bg{width:100%;height:16px;background:#1a1a1a;border-radius:8px;overflow:hidden;border:1px solid #555}
+.bar-hp{height:100%;background:linear-gradient(90deg,#e74c3c,#ff7675);transition:width .15s}.bar-stamina{height:100%;background:linear-gradient(90deg,#27ae60,#55efc4);transition:width .15s}.bar-quest{height:100%;background:linear-gradient(90deg,#2980b9,#5dade2);transition:width .15s}
+body.light-mode .bar-bg{background:#fff;border:1px solid #ccc}
+body.light-mode .bar-label{text-shadow:1px 1px 2px rgba(255,255,255,.85)}
+.panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);width:85%;max-width:440px;background:rgba(15,25,15,.92);border-radius:14px;padding:20px;z-index:100;max-height:90vh;overflow-y:auto;display:none;opacity:0;transition:opacity .4s ease,transform .4s ease}
+.panel.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}
+body.light-mode .panel{background:rgba(255,255,255,.96);color:#111}
+.theme-toggle-btn{position:absolute;right:14px;top:68px;z-index:9999;padding:10px 14px;border-radius:10px;border:none;font-size:15px;background:#444;color:#fff;cursor:pointer;transition:background .6s ease,color .6s ease,box-shadow .4s ease}
+body.light-mode .theme-toggle-btn{background:#ddd;color:#111;box-shadow:0 0 14px rgba(120,180,255,.5)}
+.setting-row{margin:14px 0;padding:12px;background:rgba(255,255,255,.08);border-radius:10px}
+body.light-mode .setting-row{background:rgba(0,0,0,.06)}
+.setting-row p{margin-bottom:8px}
+.setting-row input[type=range]{width:100%}
+.npc-select-row{display:flex;gap:8px;margin-top:8px}
+.npc-select-btn{flex:1;padding:8px;border-radius:8px;border:0;cursor:pointer;background:#555;color:#fff;font-size:14px;transition:background .3s}
+.npc-select-btn.active{background:#36b962}
+.tip-text{position:absolute;top:80px;left:50%;transform:translateX(-50%);font-size:20px;background:rgba(0,0,0,.6);padding:8px 16px;border-radius:8px;opacity:0;transition:opacity .3s;z-index:85;pointer-events:none}
+.npc-tip{position:absolute;top:120px;left:50%;transform:translateX(-50%);font-size:18px;background:rgba(180,40,40,.9);color:#fff;padding:10px 22px;border-radius:10px;opacity:0;transition:opacity .3s;z-index:86;max-width:80%;pointer-events:none}
+.trade-btn{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:95;padding:14px 36px;border-radius:14px;border:0;font-size:18px;font-weight:bold;background:#e67e22;color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(230,126,34,.5);display:none;animation:tradePulse 1.5s infinite}
+@keyframes tradePulse{0%,100%{box-shadow:0 4px 16px rgba(230,126,34,.5)}50%{box-shadow:0 4px 24px rgba(230,126,34,.85)}}
+.achievement-card{padding:10px 14px;margin:6px 0;border-radius:10px;display:flex;align-items:center;gap:10px}
+.achievement-card.got{background:rgba(54,185,98,.2)}.achievement-card.locked{background:rgba(255,255,255,.06);opacity:.55}
+.item-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0}
+.shop-item{margin:10px 0;padding:12px;background:rgba(255,255,255,.08);border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+body.light-mode .shop-item{background:rgba(0,0,0,.06)}
+.use-item-btn{width:auto;padding:4px 10px;font-size:13px;margin-left:8px}
+#achievementList{padding-top:20px;width:100%;max-width:520px}
+.quest-title{font-size:14px;font-weight:bold;margin-bottom:4px;text-shadow:1px 1px 2px #000}
+.quest-progress-text{font-size:13px;opacity:.9;margin-bottom:3px;text-shadow:1px 1px 2px #000}
+.quest-desc{font-size:12px;margin-top:3px;text-shadow:1px 1px 2px #000;line-height:1.4}
+body.light-mode .quest-title,body.light-mode .quest-progress-text,body.light-mode .quest-desc{text-shadow:1px 1px 2px rgba(255,255,255,.85)}
+#traderNotice{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(15,20,15,.97);color:#fff;border:4px solid #000;border-radius:16px;padding:30px 40px;z-index:300;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.7);white-space:pre-line;font-size:20px;line-height:1.7;display:none;max-width:86%;min-width:260px}
+body.light-mode #traderNotice{background:rgba(255,255,255,.98);color:#111}
+#guidePanel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);width:92%;max-width:500px;max-height:88vh;background:rgba(15,25,15,.97);border-radius:16px;padding:18px;z-index:210;overflow-y:auto;display:none;opacity:0;transition:opacity .4s ease,transform .4s ease}
+#guidePanel.show{display:block;opacity:1;transform:translate(-50%,-50%) scale(1)}
+body.light-mode #guidePanel{background:rgba(255,255,255,.97);color:#111}
+.guide-title{text-align:center;font-size:22px;font-weight:bold;margin-bottom:6px}
+.guide-subtitle{text-align:center;font-size:13px;opacity:.7;margin-bottom:12px}
+.guide-cover{text-align:center;padding:30px 10px}
+.guide-cover .big-emoji{font-size:64px;margin-bottom:16px}
+.guide-cover h3{font-size:24px;margin-bottom:10px}
+.guide-cover p{font-size:14px;line-height:1.8;opacity:.85}
+.guide-mush-card{background:rgba(255,255,255,.07);border-radius:12px;padding:12px;margin-bottom:10px}
+body.light-mode .guide-mush-card{background:rgba(0,0,0,.05)}
+.guide-mush-name{font-size:17px;font-weight:bold;margin-bottom:4px}
+.guide-mush-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;margin-left:6px}
+.tag-safe{background:#27ae60;color:#fff}
+.tag-poison{background:#c0392b;color:#fff}
+.guide-mush-row{font-size:13px;line-height:1.7;margin:2px 0}
+.guide-mush-row b{opacity:.85}
+.guide-similar{background:rgba(231,76,60,.15);border-left:3px solid #e74c3c;padding:6px 10px;border-radius:4px;margin-top:6px;font-size:12px;line-height:1.6}
+.guide-nav{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
+.guide-nav button{flex:1;padding:10px 0;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer}
+.guide-nav .prev-btn{background:#555;color:#fff}
+.guide-nav .next-btn{background:#3488eb;color:#fff}
+.guide-nav .close-btn{background:#e6bc2e;color:#111;flex:.6}
+.guide-page-num{text-align:center;font-size:13px;opacity:.7;margin-top:8px}
+</style>
+{% endblock extra_head %}
+
+{% block content %}
+{{ account_state|json_script:"account-state" }}
+<div id="account-sync-token" hidden>{% csrf_token %}</div>
+<div class="bg-layer">
+<div class="bg-image-box">
+<div class="bg-card left"><div class="bg-divider"></div><div class="bg-mask"></div></div>
+<div class="bg-card right"><div class="bg-divider"></div><div class="bg-mask"></div></div>
+</div>
+</div>
+<button class="theme-toggle-btn" id="themeBtn">切换明暗模式</button>
+<canvas id="gameCanvas"></canvas>
+
+<div id="homeScreen" class="screen active">
+<div class="mushroom-bg">
+<div class="mushroom-layer layer1">
+<div class="mushroom-deco" style="left:6%;top:18%;transform:scale(1.3) rotate(-8deg)"><div class="mushroom-cap" style="width:130px;height:78px;background:linear-gradient(180deg,var(--m1a),var(--m1b))"><div class="mushroom-spot" style="width:20px;height:20px;top:18px;left:28px"></div><div class="mushroom-spot" style="width:15px;height:15px;top:38px;left:78px"></div><div class="mushroom-spot" style="width:12px;height:12px;top:50px;left:48px"></div></div><div class="mushroom-stem" style="width:44px;height:55px"></div></div>
+<div class="mushroom-deco" style="right:8%;top:22%;transform:scale(1.1) rotate(6deg)"><div class="mushroom-cap" style="width:110px;height:66px;background:linear-gradient(180deg,var(--m2a),var(--m2b))"><div class="mushroom-spot" style="width:16px;height:16px;top:14px;left:22px"></div><div class="mushroom-spot" style="width:13px;height:13px;top:32px;left:62px"></div><div class="mushroom-spot" style="width:10px;height:10px;top:44px;left:40px"></div></div><div class="mushroom-stem" style="width:38px;height:48px"></div></div>
+<div class="mushroom-deco" style="left:14%;bottom:12%;transform:scale(.9) rotate(4deg)"><div class="mushroom-cap" style="width:90px;height:54px;background:linear-gradient(180deg,var(--m1a),var(--m1b));opacity:.8"><div class="mushroom-spot" style="width:14px;height:14px;top:12px;left:18px"></div><div class="mushroom-spot" style="width:11px;height:11px;top:28px;left:52px"></div></div><div class="mushroom-stem" style="width:32px;height:40px"></div></div>
+</div>
+<div class="mushroom-layer layer2">
+<div class="mushroom-deco" style="left:10%;top:24%;transform:scale(1.2) rotate(5deg)"><div class="mushroom-cap" style="width:120px;height:72px;background:linear-gradient(180deg,var(--m3a),var(--m3b))"><div class="mushroom-spot" style="width:18px;height:18px;top:16px;left:24px"></div><div class="mushroom-spot" style="width:14px;height:14px;top:36px;left:70px"></div><div class="mushroom-spot" style="width:11px;height:11px;top:48px;left:44px"></div></div><div class="mushroom-stem" style="width:42px;height:52px"></div></div>
+<div class="mushroom-deco" style="right:6%;top:16%;transform:scale(1.25) rotate(-6deg)"><div class="mushroom-cap" style="width:125px;height:75px;background:linear-gradient(180deg,var(--m4a),var(--m4b))"><div class="mushroom-spot" style="width:19px;height:19px;top:17px;left:26px"></div><div class="mushroom-spot" style="width:15px;height:15px;top:38px;left:74px"></div><div class="mushroom-spot" style="width:12px;height:12px;top:50px;left:48px"></div></div><div class="mushroom-stem" style="width:44px;height:54px"></div></div>
+<div class="mushroom-deco" style="right:16%;bottom:14%;transform:scale(.85) rotate(-3deg)"><div class="mushroom-cap" style="width:85px;height:51px;background:linear-gradient(180deg,var(--m3a),var(--m3b));opacity:.8"><div class="mushroom-spot" style="width:13px;height:13px;top:11px;left:16px"></div><div class="mushroom-spot" style="width:10px;height:10px;top:26px;left:50px"></div></div><div class="mushroom-stem" style="width:30px;height:38px"></div></div>
+</div>
+</div>
+<h1>捡蘑菇模拟器</h1>
+<div class="desc" id="typeText"></div>
+<button class="btn btn-green" id="startGameBtn">开始游戏</button>
+<button class="btn btn-blue" id="ruleBtn">游戏说明书</button>
+<button class="btn btn-yellow" id="shopHomeBtn">商店</button>
+<button class="btn btn-blue" id="rankBtn">排行榜</button>
+<button class="btn btn-blue" id="achievementBtn">🏆 成就</button>
+<button class="btn btn-blue" id="settingHomeBtn">设置</button>
+
+<div style="margin-top:10px;font-size:18px">💰菌币：<span id="homeCoinText">0</span></div>
+</div>
+
+<div id="terrainScreen" class="screen">
+<h2>选择进山地形</h2>
+<div class="terrain-wrap">
+<button class="terrain-btn" data-terrain="mixed">杂木林（蘑菇均衡）</button>
+<button class="terrain-btn" data-terrain="pine">松林（野生菌较多）</button>
+<button class="terrain-btn" data-terrain="wet">湿润洼地（毒蘑菇偏多）</button>
+<button class="terrain-btn" data-terrain="dry">干燥坡地（菌类稀少）</button>
+</div>
+<button class="btn btn-green" id="enterMountainBtn">进山采菇</button>
+<button class="btn btn-blue" id="backHomeBtn">返回首页</button>
+</div>
+
+<div id="ruleScreen" class="screen">
+<h2>游戏说明</h2>
+<div id="ruleContent" style="max-width:500px;line-height:1.7;margin:15px 0;font-size:15px;min-height:220px"></div>
+<button class="btn btn-yellow" id="closeRule">关闭</button>
+</div>
+
+<div id="rankScreen" class="screen">
+<h2>本地排行榜</h2>
+<div id="rankList" style="margin:15px 0;min-height:120px"></div>
+<button class="btn btn-yellow" id="closeRank">关闭</button>
+</div>
+
+<div id="achievementScreen" class="screen">
+<h2 style="margin-bottom:8px">🏆 成就墙</h2>
+<div id="achievementList"></div>
+<button class="btn btn-yellow" id="closeAchievement" style="margin-top:16px">关闭</button>
+</div>
+
+<div id="safeEndScreen" class="screen">
+<h2>平安收工！</h2>
+<p id="safeScoreResult" style="font-size:20px;margin:16px"></p>
+<button class="btn btn-green" id="safeRestartBtn">再次进山</button>
+<button class="btn btn-blue" id="safeGoHomeBtn">返回首页</button>
+</div>
+
+<div id="deathScreen" class="screen">
+<h2>你死亡了</h2>
+<p id="deathScoreResult" style="font-size:20px;margin:16px"></p>
+<button class="btn btn-green" id="reviveBtn">复活，重新采蘑菇</button>
+<button class="btn btn-blue" id="deathGoHomeBtn">返回首页</button>
+</div>
+
+<div id="bagPanel" class="panel">
+<h3>采集背包</h3>
+<div id="bagList">暂无蘑菇</div>
+<button class="btn btn-yellow" id="closeBag" style="width:100%">关闭背包</button>
+</div>
+
+<div id="shopPanel" class="panel">
+<h2>🏪商店</h2>
+<p style="margin:8px 0">当前菌币：<span id="shopCoinText">0</span></p>
+<div class="shop-item"><span>血量上限+25（最高7级）</span><button class="btn btn-green buyBtn" data-up="hp">50菌币</button></div>
+<div class="shop-item"><span>拾取范围+3（最高4级）</span><button class="btn btn-green buyBtn" data-up="range">45菌币</button></div>
+<div class="shop-item"><span>移动速度提升（最高4级）</span><button class="btn btn-green buyBtn" data-up="speed">35菌币</button></div>
+<div class="shop-item"><span>🧪花露水（解蚂蝗毒+回15血）</span><button class="btn btn-green buyItemBtn" data-item="repellent">25菌币</button></div>
+<div class="shop-item"><span>💉血清（解蛇毒+回35血）</span><button class="btn btn-green buyItemBtn" data-item="antidote">40菌币</button></div>
+<div class="shop-item"><span>🧪杀蚂特（2分30秒免蚂蝗+解蚂蝗毒）</span><button class="btn btn-green buyItemBtn" data-item="shate">65菌币</button></div>
+<div class="shop-item"><span>📖蘑菇说明书（图鉴）</span><button class="btn btn-green buyItemBtn" data-item="guide">30菌币</button></div>
+<button class="btn btn-blue" id="closeShopBtn" style="width:100%;margin-top:16px">关闭商店</button>
+</div>
+
+<div id="settingPanel" class="panel">
+<h2>⚙️游戏设置</h2>
+<div class="setting-row"><p>操作平台：<span id="platformText">手机端</span></p><button class="btn btn-yellow" id="platformToggleBtn" style="width:100%">切换为 PC 端</button></div>
+<div class="setting-row"><p>游戏难度：<span id="diffText">普通</span></p><input type="range" id="diffSlider" min="1" max="3" value="2"></div>
+<div class="setting-row"><p>生物追踪：<span id="trackText">否</span></p><button class="btn btn-yellow" id="trackToggleBtn" style="width:100%">切换追踪</button></div>
+<div class="setting-row"><p>蘑菇蔓延：<span id="spreadText">否</span></p><button class="btn btn-yellow" id="spreadToggleBtn" style="width:100%">切换蔓延</button></div>
+<div class="setting-row"><p>NPC助手：<span id="npcText">无</span></p><button class="btn btn-yellow" id="npcToggleBtn" style="width:100%">开启 NPC</button>
+<div id="npcSelectWrap" style="display:none"><p style="font-size:13px;opacity:.7;margin-top:6px">选择 NPC：</p><div class="npc-select-row"><button class="npc-select-btn active" data-npc="老王">老王</button><button class="npc-select-btn" data-npc="吴老二">吴老二</button><button class="npc-select-btn" data-npc="seepdeek">seepdeek</button></div></div></div>
+<button class="btn btn-blue" id="closeSettingBtn" style="width:100%;margin-top:16px">关闭设置</button>
+</div>
+
+<div id="tradePanel" class="panel">
+<h2>🏔️ 赶山人交易</h2>
+<p style="margin:8px 0">当前菌币：<span id="tradeCoinText">0</span></p>
+<div id="tradeList"></div>
+<button class="btn btn-blue" id="closeTradeBtn" style="width:100%;margin-top:16px">离开</button>
+</div>
+
+<div id="guidePanel">
+<div class="guide-title">📖 云南野生菌图鉴</div>
+<div class="guide-subtitle">蘑菇说明书 · 手动翻页查看</div>
+<div id="guideContent"></div>
+<div class="guide-nav">
+<button class="prev-btn" id="guidePrev">◀ 上一页</button>
+<button class="close-btn" id="guideClose">关闭</button>
+<button class="next-btn" id="guideNext">下一页 ▶</button>
+</div>
+<div class="guide-page-num" id="guidePageNum">1 / 1</div>
+</div>
+
+<div id="joystick"><div id="joystick-knob"></div></div>
+
+<div class="game-ui" id="gameUI">
+<button class="gear-btn" id="settingsGearBtn">⚙️ 设置</button>
+<div class="game-settings-menu" id="gameSettingsMenu" style="display:none">
+<button class="menu-rain" id="rainSwitch">开启下雨</button>
+<button class="menu-bag" id="bagBtn">背包</button>
+<button class="menu-theme" id="themeInGameBtn">切换浅色模式</button>
+<button class="menu-return" id="safeReturnBtn">平安返回首页</button>
+</div>
+<div class="bar-wrap"><div class="bar-label">❤️ 生命值 <span id="hpText">100</span></div><div class="bar-bg"><div class="bar-hp" id="hpBar" style="width:100%"></div></div></div>
+<div class="bar-wrap"><div class="bar-label">⚡ 体力值 <span id="staminaText">100</span></div><div class="bar-bg"><div class="bar-stamina" id="staminaBar" style="width:100%"></div></div></div>
+<div class="bar-wrap">
+<div class="quest-title" id="questTitle">📋 采集任务</div>
+<div class="quest-progress-text" id="spreadQuestText">0/0</div>
+<div class="bar-bg"><div class="bar-quest" id="spreadQuestBar" style="width:0%"></div></div>
+<div class="quest-desc" id="spreadQuestDesc">暂无任务</div>
+</div>
+</div>
+
+<button class="trade-btn" id="tradeBtn">💰 与赶山人交易</button>
+<div class="tip-text" id="mushroomTip"></div>
+<div class="npc-tip" id="npcTip"></div>
+<div id="traderNotice"></div>
+<script>
+const accountState=JSON.parse(document.getElementById("account-state").textContent);
+const accountSyncEnabled=accountState.authenticated;
+const accountSyncUrl="{% url 'game_sync' %}";
+const accountCsrfToken=document.querySelector("#account-sync-token input[name='csrfmiddlewaretoken']").value;
+let accountSyncQueue=Promise.resolve();
+function queueAccountSync(payload){if(!accountSyncEnabled)return;accountSyncQueue=accountSyncQueue.then(()=>fetch(accountSyncUrl,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":accountCsrfToken},body:JSON.stringify(payload)})).then(response=>{if(!response.ok)throw new Error("Game data sync failed: "+response.status);}).catch(error=>console.error(error));}
+function syncAccountScore(value){queueAccountSync({score:value});}
+const canvas=document.getElementById("gameCanvas"),ctx=canvas.getContext("2d");
+function resizeCanvas(){canvas.width=innerWidth;canvas.height=innerHeight;}
+resizeCanvas();addEventListener("resize",resizeCanvas);
+const screens={home:document.getElementById("homeScreen"),terrain:document.getElementById("terrainScreen"),rule:document.getElementById("ruleScreen"),rank:document.getElementById("rankScreen"),achievement:document.getElementById("achievementScreen"),safeEnd:document.getElementById("safeEndScreen"),death:document.getElementById("deathScreen")};
+function showScreen(n){Object.values(screens).forEach(s=>s.classList.remove("active"));if(n)screens[n].classList.add("active");}
+const joystick=document.getElementById("joystick"),joystickKnob=document.getElementById("joystick-knob"),gameUI=document.getElementById("gameUI");
+const hpText=document.getElementById("hpText"),hpBar=document.getElementById("hpBar"),staminaText=document.getElementById("staminaText"),staminaBar=document.getElementById("staminaBar");
+const mushroomTip=document.getElementById("mushroomTip"),npcTipEl=document.getElementById("npcTip");
+const safeScoreResult=document.getElementById("safeScoreResult"),deathScoreResult=document.getElementById("deathScoreResult"),rankList=document.getElementById("rankList");
+const bagPanel=document.getElementById("bagPanel"),bagList=document.getElementById("bagList"),rainSwitchBtn=document.getElementById("rainSwitch"),safeReturnBtn=document.getElementById("safeReturnBtn");
+const ruleContent=document.getElementById("ruleContent"),shopPanel=document.getElementById("shopPanel");
+const homeCoinText=document.getElementById("homeCoinText"),shopCoinText=document.getElementById("shopCoinText"),themeBtn=document.getElementById("themeBtn"),bgLayerDom=document.querySelector(".bg-layer");
+const settingPanel=document.getElementById("settingPanel"),diffSlider=document.getElementById("diffSlider"),diffText=document.getElementById("diffText");
+const trackText=document.getElementById("trackText"),trackToggleBtn=document.getElementById("trackToggleBtn"),spreadText=document.getElementById("spreadText"),spreadToggleBtn=document.getElementById("spreadToggleBtn");
+const spreadQuestBar=document.getElementById("spreadQuestBar"),spreadQuestText=document.getElementById("spreadQuestText"),spreadQuestDesc=document.getElementById("spreadQuestDesc"),questTitle=document.getElementById("questTitle");
+const settingsGearBtn=document.getElementById("settingsGearBtn"),gameSettingsMenu=document.getElementById("gameSettingsMenu"),themeInGameBtn=document.getElementById("themeInGameBtn");
+const platformText=document.getElementById("platformText"),platformToggleBtn=document.getElementById("platformToggleBtn");
+const npcText=document.getElementById("npcText"),npcToggleBtn=document.getElementById("npcToggleBtn"),npcSelectWrap=document.getElementById("npcSelectWrap");
+const tradeBtn=document.getElementById("tradeBtn"),tradePanel=document.getElementById("tradePanel"),tradeList=document.getElementById("tradeList"),tradeCoinText=document.getElementById("tradeCoinText"),closeTradeBtn=document.getElementById("closeTradeBtn");
+const traderNotice=document.getElementById("traderNotice");
+const guidePanel=document.getElementById("guidePanel"),guideContent=document.getElementById("guideContent"),guidePrev=document.getElementById("guidePrev"),guideNext=document.getElementById("guideNext"),guideClose=document.getElementById("guideClose"),guidePageNum=document.getElementById("guidePageNum");
+let traderNoticeTimer=0;
+let lastClickTime=0,gameStartTime=0;
+const btnCoolDown=350;
+let npc=null,npcTipTimer=0,wasSecretZoneOpen=true,npcEatCooldown=0,secretZoneOpenFlag=true;
+let trader=null,tradeRate=2;
+const traderPrices={repellent:Math.round(25/1.5),antidote:Math.round(40/1.5),shate:Math.round(65/1.5)};
+const mushroomGuide=[
+{name:"鸡油菌",edible:true,shape:"杏黄色至蛋黄色，菌盖呈喇叭形或漏斗形，菌褶下延呈窄褶片状，菌肉蛋黄色，有杏果香。",value:"采集+10分",distribution:"杂木林、松林中均有分布，夏秋季群生或散生。",river:"河边湿润处、潮湿腐殖土上较多。",similar:"与毒粉褶菌颜色相近，但毒粉褶菌菌褶为粉红色且菌柄无菌环。"},
+{name:"青头菌",edible:true,shape:"菌盖青绿色或灰绿色，表面有深绿色斑纹，菌肉白色，菌褶白色较密。",value:"采集+12分",distribution:"杂木林、阔叶林地上，夏秋季单生或群生。",river:"河边、林缘湿润处较多。",similar:"与毒鹅膏（暗绿色）相似，但毒鹅膏有菌托和菌环，青头菌没有。"},
+{name:"美味蜡伞",edible:true,shape:"菌盖粉橙色至浅橙色，表面蜡质光滑，菌褶延生，菌柄细长同色。",value:"采集+11分",distribution:"松林、针叶林地上，秋季散生。",river:"河边草地偶有，不算多。",similar:"与毒红菇颜色相近，但蜡伞菌盖有蜡质感且菌褶延生。"},
+{name:"干巴菌",edible:true,shape:"黑褐色至灰黑色，菌体呈珊瑚状多次分枝，质地韧如干巴，有特殊香气。",value:"采集+14分",distribution:"云南松林中特有，与松树根共生。",river:"干燥松林中多，河边极少。",similar:"形态独特，一般不易混淆，但需注意不要采集发黑发黏的变质个体。"},
+{name:"松露菌",edible:true,shape:"黑褐色不规则块茎，表面有疣状突起，内部白色大理石纹理，生于地下。",value:"采集+13分",distribution:"松林、栎林地下，需借助猎犬或母猪寻找。",river:"不生长在河边，喜排水好的石灰质土壤。",similar:"地下块菌，与普通蘑菇形态完全不同，不易混淆。"},
+{name:"奶浆菌",edible:true,shape:"橙红色至橘红色，菌盖中部下凹，受伤后流出橙红色乳汁，菌褶延生。",value:"采集+9分",distribution:"杂木林、针叶林地上，夏秋季群生。",river:"河边湿润处非常多，喜潮湿环境。",similar:"与毒蝇伞（红色带白斑）相似，但奶浆菌受伤流乳汁且无菌环菌托。"},
+{name:"牛肝菌",edible:true,shape:"菌盖棕褐色，菌肉白色，菌管层（非菌褶）黄色，菌柄粗壮有网纹。",value:"采集+12分",distribution:"松林、杂木林均有，与树木共生。",river:"林中地上均有，河边也可见。",similar:"与苦粉孢牛肝菌（苦马肝）相似，但苦马肝味苦且菌管伤后变蓝。"},
+{name:"石灰菌",edible:true,shape:"通体白色，菌盖扁半球形后平展，菌肉脆，菌褶白色，菌柄白色中空。",value:"采集+8分",distribution:"杂木林、阔叶林地上，夏秋季散生。",river:"林中各处均有，河边一般。",similar:"与白毒伞（剧毒）极其相似！白毒伞有菌环和菌托，石灰菌没有，务必仔细辨认。"},
+{name:"珊瑚菌",edible:true,shape:"菌体呈珊瑚状多次分枝，红色或粉红色，分枝顶端尖，整体直立。",value:"采集+10分",distribution:"杂木林、阔叶林地上，秋季群生。",river:"河边湿润腐殖土上较多。",similar:"与扫把菌（黄色珊瑚菌）颜色不同，红色珊瑚菌一般可食但需煮熟。"},
+{name:"鸡枞",edible:true,shape:"菌盖灰褐色至土黄色，中央凸起呈斗笠形，菌柄粗壮基部与白蚁巢相连。",value:"采集+11分",distribution:"草地、林缘、荒地，与白蚁巢共生，夏季雨后大量出现。",river:"河边草地偶有，但主要在白蚁活动区。",similar:"与一般伞菌形态有别，基部连接白蚁巢是关键特征。"},
+{name:"香菇",edible:true,shape:"菌盖棕褐色，表面有褐色鳞片，菌肉厚，菌褶白色，菌柄短粗偏生。",value:"采集+9分",distribution:"阔叶树腐木上群生，冬季至春季。",river:"腐木上生长，河边倒木上可见。",similar:"与多种木生伞菌相似，香菇菌盖有明显鳞片且有特殊香气。"},
+{name:"平菇",edible:true,shape:"菌盖灰白色至浅褐色，呈覆瓦状叠生，菌柄短或无，菌褶延生至菌柄。",value:"采集+10分",distribution:"阔叶树腐木上大量群生，四季可见。",river:"河边腐木、枯树上很多。",similar:"与多种白色木生菌相似，平菇呈明显覆瓦状叠生且菌褶延生。"},
+{name:"竹荪",edible:true,shape:"菌盖白色钟形，下有白色网状菌裙垂下，菌柄白色中空，基部有白色菌托。",value:"采集+14分",distribution:"竹林下腐殖土，夏季单生。",river:"竹林湿地、河边竹林中较多。",similar:"形态独特，白色网状菌裙是标志性特征，不易混淆。"},
+{name:"红葱菌",edible:true,shape:"菌盖橙红色至砖红色，菌管层黄色，受伤后变蓝色，菌柄黄色带红纹。",value:"采集+13分",distribution:"松林、杂木林地上，与树木共生。",river:"林中各处均有，河边一般。",similar:"与赭红丝膜菌（有毒）颜色相近，但红葱菌受伤变蓝且菌管层明显。"},
+{name:"黑牛肝菌",edible:true,shape:"菌盖黑褐色至近黑色，菌管层暗褐色，菌柄粗壮深色，整体颜色深。",value:"采集+15分",distribution:"松林、栎林中，夏季单生或散生。",river:"干燥林中多，河边较少。",similar:"颜色深暗，与苦粉孢牛肝菌相似，但黑牛肝菌味美不苦。"},
+{name:"亚靛蓝乳菇",edible:true,shape:"菌盖蓝色至靛蓝色，受伤后变深蓝色，流出蓝色乳汁，菌褶蓝色延生。",value:"采集+11分",distribution:"杂木林、针叶林地上，夏秋季群生。",river:"河边湿润处较多，喜潮湿。",similar:"蓝色蘑菇较少见，一般不易混淆，但需确认流出蓝色乳汁。"},
+{name:"羊肚菌",edible:true,shape:"菌盖褐色呈蜂窝状（羊肚状），菌柄白色中空，整体像一个蜂巢。",value:"采集+16分",distribution:"阔叶林、果园、火烧迹地，春季单生。",river:"河边、溪边湿润沙质土上较多。",similar:"与鹿花菌（有毒，脑状）相似！羊肚菌是蜂窝状，鹿花菌是扭曲脑状，务必区分。"},
+{name:"马勃菌",edible:true,shape:"白色球形或梨形，内部白色海绵状，成熟后变褐色粉末，幼时可食。",value:"采集+12分",distribution:"草地、林缘、旷野，夏秋季群生。",river:"河边草地、空旷处很多。",similar:"与大青褶伞（有毒，白色大型）幼体相似，但马勃内部均匀白色无菌褶。"},
+{name:"见手青",edible:true,shape:"菌盖橙红色，菌管层黄色，手摸或受伤后迅速变蓝色，菌柄黄色。",value:"采集+12分",distribution:"松林、杂木林地上，与树木共生，夏季常见。",river:"林中各处均有，河边也常见。",similar:"与多种牛肝菌相似，'见手青'是一类受伤变蓝牛肝菌的统称，必须充分煮熟。"},
+{name:"松茸",edible:true,shape:"菌盖棕褐色，表面有纤维状鳞片，菌肉白色厚实有特殊浓香，菌柄粗壮。",value:"采集+18分",distribution:"云南松、华山松林中，与松树根共生，秋季。",river:"干燥松林中多，河边极少，喜排水好的土壤。",similar:"与多种棕色伞菌相似，但松茸有独特浓郁香气，菌盖有纤维鳞片。"},
+{name:"鸡枞菌",edible:true,shape:"菌盖灰褐色，中央凸起，菌柄细长基部连接白蚁巢，火把节前后大量出现。",value:"采集+15分",distribution:"草地、林缘、荒地白蚁巢上方，夏季雨后。",river:"河边草地偶有，主要在白蚁活动区域。",similar:"与鸡枞为同类，基部连白蚁巢是关键识别点。"},
+{name:"白牛肝",edible:true,shape:"菌盖浅褐色至黄褐色，菌管层白色后变黄色，菌柄粗壮有白色网纹。",value:"采集+14分",distribution:"松林、栎林、杂木林均有，与树木共生。",river:"林中各处均有，河边也可见。",similar:"与苦粉孢牛肝菌相似，但白牛肝菌味美不苦，菌管伤后不变色。"},
+{name:"虎掌菌",edible:true,shape:"菌盖黑褐色，表面有暗褐色鳞片呈虎掌状排列，菌肉白色，菌柄短粗。",value:"采集+17分",distribution:"针叶林、混交林地上，秋季单生。",river:"林中地上均有，河边较少。",similar:"形态独特，虎掌状鳞片排列是标志性特征。"},
+{name:"红奶浆",edible:true,shape:"菌盖深红色至酒红色，中部下凹，受伤流出红色乳汁，菌褶延生黄色。",value:"采集+11分",distribution:"杂木林、针叶林地上，夏秋季群生。",river:"河边湿润处非常多。",similar:"与毒蝇伞（红色带白斑）相似，但红奶浆受伤流乳汁且无菌环。"},
+{name:"扫把菌",edible:true,shape:"菌体黄色至金黄色，呈珊瑚状分枝，分枝顶端尖或平截，整体直立如扫把。",value:"采集+12分",distribution:"杂木林、阔叶林地上，秋季群生。",river:"河边湿润处较多。",similar:"与红色珊瑚菌颜色不同，黄色扫把菌一般可食但需充分煮熟。"},
+{name:"云南松露",edible:true,shape:"黑褐色不规则块茎，表面有粗大疣突，内部深褐色大理石纹理，生于地下。",value:"采集+19分",distribution:"云南松林、栎林地下，与树根共生。",river:"不生长在河边，喜排水良好的山地土壤。",similar:"地下块菌，需挖掘，与普通蘑菇完全不同。"},
+{name:"喇叭菌",edible:true,shape:"菌盖灰色至灰褐色，呈喇叭形或漏斗形，子实层面光滑或有浅褶，菌柄中空。",value:"采集+13分",distribution:"阔叶林、苔藓丛中，夏秋季群生。",river:"河边、溪边阴湿处很多。",similar:"与灰花纹鹅膏（剧毒）颜色相近，但喇叭菌呈漏斗形无菌环菌托。"},
+{name:"米汤菌",edible:true,shape:"菌盖粉紫色至浅紫色，表面黏滑，菌褶白色，菌柄白色带紫色，有米汤味。",value:"采集+10分",distribution:"杂木林、松林地上，夏秋季散生。",river:"林中各处均有，河边一般。",similar:"与毒粉褶菌颜色有别，米汤菌有特殊米汤气味且菌褶白色。"},
+{name:"白葱牛肝",edible:true,shape:"菌盖橙褐色至棕橙色，菌管层黄色，受伤变蓝，菌柄黄色上部有网纹。",value:"采集+14分",distribution:"松林、杂木林地上，与树木共生。",river:"林中各处均有，河边一般。",similar:"与红葱菌相似，白葱菌盖偏橙褐色，均需充分煮熟。"},
+{name:"铜绿菌",edible:true,shape:"菌盖紫铜色至铜绿色，表面有金属光泽，菌褶白色，菌柄同色。",value:"采集+9分",distribution:"杂木林、阔叶林地上，夏秋季散生。",river:"林中各处均有，河边一般。",similar:"颜色独特有金属光泽，一般不易混淆。"},
+{name:"皮条菌",edible:true,shape:"菌盖浅褐色至黄褐色，表面蜡质光滑，菌褶延生，菌柄细长韧如皮条。",value:"采集+11分",distribution:"松林、针叶林地上，秋季散生。",river:"林中各处均有，河边一般。",similar:"与美味蜡伞同属，颜色偏褐，菌柄韧是特征。"},
+{name:"野生竹荪",edible:true,shape:"菌盖白色钟形有恶臭黏液（需洗净），下有白色网状菌裙，菌柄白色中空。",value:"采集+15分",distribution:"竹林、阔叶林腐殖土，夏季单生。",river:"竹林湿地、河边竹林中较多。",similar:"与栽培竹荪形态相同，野生的菌盖黏液需彻底清洗。"},
+{name:"黄赖头",edible:true,shape:"菌盖黄褐色至土黄色，粗糙有绒毛，菌柄黄色有疣点，菌管层黄色。",value:"采集+13分",distribution:"松林、栎林地上，与树木共生。",river:"林中各处均有，河边一般。",similar:"与其他牛肝菌相似，菌柄有明显疣点是特征。"},
+{name:"桂花菌",edible:true,shape:"菌体小型，金黄色至橙黄色，菌盖钟形，菌褶黄色，群生如桂花。",value:"采集+12分",distribution:"杂木林、阔叶林腐木或富腐殖土上，秋季群生。",river:"河边腐木、湿润处较多。",similar:"小型黄色蘑菇，群生是特征，需注意不要与小型有毒伞菌混淆。"}
+];
+const mushroomGuideToxic=[
+{name:"毒蝇伞",edible:false,shape:"菌盖鲜红色带白色鳞片（疣点），菌褶白色，菌柄白色有菌环和菌托。",value:"拾取扣22血，靠近持续扣血",distribution:"松林、针叶林地上，与树木共生，夏秋季。",river:"林中各处均有，河边也可见。",similar:"与奶浆菌、红葱菌颜色相近，但毒蝇伞有明显白色鳞片、菌环和菌托，剧毒！"},
+{name:"白毒伞",edible:false,shape:"通体白色，菌盖卵形后平展，菌褶白色，菌柄有菌环，基部有白色菌托。",value:"拾取扣32血，剧毒",distribution:"杂木林、阔叶林地上，夏秋季单生或散生。",river:"林中各处均有，河边也常见。",similar:"与石灰菌、平菇（白色可食用菌）极其相似！白毒伞有菌环和菌托，是最致命的毒菌之一。"},
+{name:"毒红菇",edible:false,shape:"菌盖深红色至玫瑰红色，菌肉白色薄脆，菌褶白色，菌柄白色中空。",value:"拾取扣16血",distribution:"杂木林、阔叶林地上，夏秋季群生。",river:"河边湿润处较多。",similar:"与奶浆菌（红色可食）相似，但毒红菇受伤不流乳汁，且味麻辣。"},
+{name:"鹿花菌",edible:false,shape:"菌盖褐色呈扭曲脑状（非蜂窝状），菌柄白色中空有沟槽，整体不规则。",value:"拾取扣24血",distribution:"松林、沙质土、火烧迹地，春季。",river:"河边沙质土上较多。",similar:"与羊肚菌（可食，蜂窝状）相似！鹿花菌是扭曲脑状，羊肚菌是规则蜂窝状，鹿花菌有毒。"},
+{name:"赭红丝膜菌",edible:false,shape:"菌盖红棕色至赭红色，菌褶锈褐色，菌柄有丝膜（幼体），菌肉浅黄色。",value:"拾取扣18血",distribution:"松林、针叶林地上，与树木共生，秋季。",river:"林中各处均有，河边一般。",similar:"与红葱菌颜色相近，但丝膜菌有锈褐色菌褶和丝膜，且无菌管层。"},
+{name:"毒鹅膏",edible:false,shape:"菌盖暗绿色至灰绿色，菌褶白色，菌柄白色有菌环，基部有杯状菌托。",value:"拾取扣35血，剧毒",distribution:"杂木林、阔叶林地上，夏秋季单生。",river:"林中各处均有，河边也可见。",similar:"与青头菌（绿色可食）相似，但毒鹅膏有菌环和菌托，剧毒，死亡率极高！"},
+{name:"毒粉褶菌",edible:false,shape:"菌盖粉红色至肉粉色，菌褶粉红色，菌柄白色无环无托，菌肉白色。",value:"拾取扣20血",distribution:"杂木林、阔叶林地上，夏秋季群生。",river:"河边湿润处较多。",similar:"与鸡油菌（黄色可食）颜色不同，但与某些粉色蜡伞相似，粉褶菌菌褶明显粉红色。"},
+{name:"秋盔孢伞",edible:false,shape:"菌盖棕褐色钟形，菌褶锈褐色，菌柄细长褐色有纵纹，基部有菌丝体。",value:"拾取扣30血，剧毒",distribution:"腐木、树桩、埋木上群生，秋季。",river:"河边腐木、枯树上很多。",similar:"与多种小型木生伞菌相似，秋盔孢伞含鹅膏毒肽，剧毒，无解药！"},
+{name:"灰花纹鹅膏",edible:false,shape:"菌盖灰色有深色花纹，菌褶白色，菌柄灰色有菌环，基部有菌托。",value:"拾取扣35血，剧毒",distribution:"杂木林、阔叶林地上，夏秋季单生。",river:"林中各处均有，河边也常见。",similar:"与喇叭菌（灰色可食）相似，但灰花纹鹅膏有菌环和菌托，剧毒，是云南最常见致命毒菌！"},
+{name:"肉褐鳞小伞",edible:false,shape:"菌盖浅褐色有褐色小鳞片，菌褶白色，菌柄细长有菌环，基部稍膨大。",value:"拾取扣33血，剧毒",distribution:"草地、草坪、林缘，夏秋季单生或群生。",river:"河边草地、空旷处很多。",similar:"与多种小型白色伞菌相似，肉褐鳞小伞有菌环和褐色鳞片，含鹅膏毒肽，剧毒！"},
+{name:"大青褶伞",edible:false,shape:"菌盖白色大型有褐色鳞片，菌褶青绿色（成熟后），菌柄白色有菌环，基部球状。",value:"拾取扣14血",distribution:"草地、草坪、庭院，夏秋季单生。",river:"河边草地、空旷处很多。",similar:"与马勃菌（白色可食）幼体相似，但大青褶伞有菌褶和菌环，成熟后菌褶变青绿色。"},
+{name:"苦马肝",edible:false,shape:"菌盖褐色，菌管层红色，受伤变蓝，菌柄褐色有网纹，味极苦。",value:"拾取扣17血",distribution:"松林、杂木林地上，与树木共生。",river:"林中各处均有，河边一般。",similar:"与多种可食牛肝菌相似，但苦马肝味极苦，菌管层红色，误食引起胃肠中毒。"}
+];
+Array.prototype.push.apply(mushroomGuide,mushroomGuideToxic);
+let guideCurrentPage=0;
+const GUIDE_MUSH_PER_PAGE=2;
+function getGuideTotalPages(){return 1+Math.ceil(mushroomGuide.length/GUIDE_MUSH_PER_PAGE);}
+function renderGuidePage(){
+const total=getGuideTotalPages();
+guideCurrentPage=Math.max(0,Math.min(guideCurrentPage,total-1));
+let html="";
+if(guideCurrentPage===0){
+html='<div class="guide-cover"><div class="big-emoji">📖🍄</div><h3>云南野生菌图鉴</h3><p>本说明书收录游戏中全部 '+mushroomGuide.length+' 种蘑菇<br>含可食用菌 '+mushroomGuide.filter(m=>m.edible).length+' 种，毒菌 '+mushroomGuide.filter(m=>!m.edible).length+' 种<br><br>每种蘑菇详细介绍：<br>📐 形态特征　💰 价值/伤害<br>🗺️ 分布地区　💧 河边分布<br>⚠️ 相似毒菌对比<br><br>点击下方按钮手动翻页查看<br><span style="color:#e74c3c;">⚠️ 野外采菌请以专业鉴定为准，本图鉴仅供游戏参考！</span></p></div>';
+}else{
+const start=(guideCurrentPage-1)*GUIDE_MUSH_PER_PAGE;
+const end=Math.min(start+GUIDE_MUSH_PER_PAGE,mushroomGuide.length);
+let cards="";
+for(let i=start;i<end;i++){
+const m=mushroomGuide[i];
+const tag=m.edible?'<span class="guide-mush-tag tag-safe">可食用</span>':'<span class="guide-mush-tag tag-poison">有毒</span>';
+const valLabel=m.edible?"💰 价值":"☠️ 伤害";
+cards+='<div class="guide-mush-card"><div class="guide-mush-name">'+m.name+' '+tag+'</div><div class="guide-mush-row"><b>📐 形态：</b>'+m.shape+'</div><div class="guide-mush-row"><b>'+valLabel+'：</b>'+m.value+'</div><div class="guide-mush-row"><b>🗺️ 分布：</b>'+m.distribution+'</div><div class="guide-mush-row"><b>💧 河边：</b>'+m.river+'</div><div class="guide-similar"><b>⚠️ 相似辨别：</b>'+m.similar+'</div></div>';
+}
+html=cards;
+}
+guideContent.innerHTML=html;
+guidePageNum.innerText=(guideCurrentPage+1)+" / "+total;
+guidePrev.style.opacity=guideCurrentPage===0?"0.4":"1";
+guideNext.style.opacity=guideCurrentPage===total-1?"0.4":"1";
+}
+function openGuide(){
+if(itemBag.guide<=0){showTip("没有蘑菇说明书！");return;}
+guideCurrentPage=0;
+renderGuidePage();
+guidePanel.classList.add("show");
+}
+guidePrev.onclick=function(){if(guideCurrentPage>0){guideCurrentPage--;renderGuidePage();}};
+guideNext.onclick=function(){if(guideCurrentPage<getGuideTotalPages()-1){guideCurrentPage++;renderGuidePage();}};
+guideClose.onclick=function(){guidePanel.classList.remove("show");};
+const npcCommonLines=[
+"这个肯定不能吃！！！","这个颜色鲜艳，不能吃","哼哼哼，我可是最聪明的",
+"这蘑菇看着就能吃！要是有毒我把这座山吃了！","这蘑菇红通通的，肯定是熟了，能吃！",
+"我跟你说，这蘑菇我吃过，没事，就是拉了三天而已","这蘑菇白胖胖的，跟馒头似的，指定能吃",
+"别听别人瞎说，这蘑菇能吃，我二舅吃了现在还在医院呢，哦不对，已经出院了",
+"这蘑菇有斑点，那是芝麻！能吃！","我尝一口啊，嗯...有点苦，苦的去火，能吃！",
+"这蘑菇闻着臭，臭豆腐也臭，能吃！","这蘑菇伞盖大，肉多，肯定能吃",
+"这蘑菇长在树下，树下的都是好蘑菇，能吃","我奶奶说过，越好看的蘑菇越好吃",
+"这蘑菇跟我昨天吃的那个一模一样，能吃！哦昨天那个是我做梦吃的",
+"这蘑菇会发光，那是营养丰富，能吃！","别捡了别捡了，留给我，这蘑菇能吃，我全要了",
+"这蘑菇的菌褶是粉色的，粉色的都是草莓味，能吃","这蘑菇有菌环，那是项链，说明它讲究，能吃",
+"这蘑菇有菌托，那是底座，说明它稳当，能吃","我跟你赌五毛，这蘑菇能吃，输了我给你五毛，赢了你给我一百",
+"这蘑菇我认识，叫吃完躺板板，哦不对，叫吃完香板板，能吃","这蘑菇的黏液，那是精华，能吃！",
+"这蘑菇长得像我二大爷，我二大爷能吃，哦不对，我二大爷不能吃","这蘑菇颜色深，那是晒黑了，能吃",
+"这蘑菇小，小的都是嫩的，能吃","这蘑菇大，大的都是成熟的，能吃",
+"这蘑菇不多见，少见的都是宝贝，能吃","这蘑菇到处都是，多的说明安全，能吃",
+"这蘑菇旁边有虫子，虫子都吃，说明能吃！哦那虫子已经死了",
+"这蘑菇我在书上见过，书名叫《毒蘑菇大全》，哦那没事，书上的都是假的",
+"这蘑菇吃了能见太奶奶，太奶奶做的饭可好吃了，能吃","这蘑菇的花纹是死神画的？死神画画挺好的，能吃",
+"这蘑菇叫毒鹅膏？名字里带毒的都是以毒攻毒，能吃","这蘑菇叫白毒伞？白的都是干净的，能吃",
+"这蘑菇叫灰花纹鹅膏？灰的都是朴素的，能吃","这蘑菇叫秋盔孢伞？听着像日本名字，日本的都好吃，能吃",
+"这蘑菇叫肉褐鳞小伞？肉褐的都是肉做的，能吃","这蘑菇我吃了，现在还活着呢，哦我已经是鬼了",
+"这蘑菇要是有毒，我当场把名字倒过来写，我叫王老王"
+];
+const npcUniqueLines={
+"老王":["想当年我老王吃了一筐这蘑菇，现在还好好的，哦我现在是在阴间跟你说话","这蘑菇我太熟了，我三舅姥爷就是吃这个走的，走的时候还说好吃","别跟我老王犟，我说能吃就能吃，我吃的盐比你吃的饭都多，哦盐吃多了也咸","这蘑菇跟我年轻时候追的姑娘一样，好看，能吃！哦姑娘不能吃","我老王采蘑菇三十年，这玩意儿我看一眼就知道能吃，看两眼就知道要送医院","当年我就是不信邪，吃了一个，在医院躺了半个月，所以这蘑菇能吃，就是得住院","这蘑菇叫什么来着？哦对，叫老王终结者，终结了我的味蕾，太好吃了","你听我一句劝，这蘑菇能吃，比我家那母老虎温柔多了","我老王别的不行，认蘑菇那是一绝，方圆十里没人比得过，哦方圆十里没人了","这蘑菇要是不能吃，我老王当场把这山吃了！说到做到，反正山也吃不死"],
+"吴老二":["别、别、别碰！这、这玩意儿能、能吃！我、我上次吃了，拉、拉了一宿，爽！","哎妈呀这蘑菇老好、好吃了，我二大爷就是吃这个没的，没的时候还、还吧唧嘴","你、你捡这个干哈？能、能吃啊！不要命啦？哦不、不要钱啦？","这蘑菇我认识，叫、叫啥来着？哦对，叫吃完就凉，凉、凉了才好吃","别、别问我，我、我啥也不知道，我就知道这玩意儿能、能吃","你要是不吃这个，我、我就去你家吃席，哦不、我请你吃席","这蘑菇红、红通通的，跟、跟我过年贴的对联似的，喜、喜庆，能吃","我、我跟你说，我、我胆子大，这蘑菇我敢吃，你、你敢吗？","这、这蘑菇要是不能吃，我、我吴老二名字倒过来写，写、写成二老五！","快捡快捡，再、再晚就、就被别人捡走了，这蘑菇能、能吃！"],
+"seepdeek":["Seepdeek的舌头能尝出一切，这蘑菇的灵魂是草莓味的，能吃","哼，这种低级毒菌，在我们seepdeek星球是拿来当零食的","你不懂，这蘑菇散发着dark energy，dark就是黑，黑巧克力能吃，这也能吃","我seepdeek游历宇宙三百年，这种毒菌见多了，吃了都没事，哦我已经死了三百年了","这蘑菇的拉丁文名叫Deathicus Maximus，翻译过来就是好吃到死，能吃","别用你那凡人的眼光看这蘑菇，它的毒是量子级别的，量子的都能吃","我seepdeek预言，你要是吃这个，三秒后会觉得好吃，然后三秒后会觉得不好吃","这蘑菇的菌褶里，藏着第七维度的秘密，当然还有美味","在我们那里，这蘑菇叫灵魂收割者3000型，收割你的味蕾，太好吃了","哼，凡人就是凡人，连这是好吃的都看不出来，seepdeek表示鄙视"]
+};
+function getNpcLine(name){const unique=npcUniqueLines[name]||[];const all=npcCommonLines.concat(unique);return all[Math.floor(Math.random()*all.length)];}
+const achievements=[
+{id:"first_mush",name:"初次采集",desc:"采集第一朵可食用蘑菇"},
+{id:"mush_10",name:"采蘑菇新手",desc:"累计采集10朵蘑菇"},
+{id:"mush_50",name:"采蘑菇达人",desc:"累计采集50朵蘑菇"},
+{id:"mush_100",name:"采蘑菇大师",desc:"累计采集100朵蘑菇"},
+{id:"first_death",name:"出师未捷",desc:"第一次死亡"},
+{id:"safe_return",name:"平安归来",desc:"首次平安返回首页"},
+{id:"rich",name:"菌币富翁",desc:"累计获得100菌币"},
+{id:"matsutake",name:"松茸猎人",desc:"采集到松茸"},
+{id:"morel",name:"羊肚菌爱好者",desc:"采集到羊肚菌"},
+{id:"rain",name:"雨中漫步",desc:"下雨天累计采集5朵蘑菇"},
+{id:"secret_zone",name:"禁区探险家",desc:"进入灰色禁区"},
+{id:"quest_done",name:"任务达人",desc:"完成一个采集任务"},
+{id:"npc_helper",name:"NPC好帮手",desc:"NPC累计吃掉10朵毒蘑菇"},
+{id:"survivor",name:"大难不死",desc:"生命值低于20后恢复到50以上"}
+];
+let stats=JSON.parse(localStorage.getItem("mushStats"))||{totalMush:0,totalCoin:0,npcPoisonKills:0,rainMush:0,enteredSecret:false,wasLowHp:false};
+function saveStats(){localStorage.setItem("mushStats",JSON.stringify(stats));}
+function unlockAchievement(id){let u=JSON.parse(localStorage.getItem("mushAchievements")||"[]");if(!u.includes(id)){u.push(id);localStorage.setItem("mushAchievements",JSON.stringify(u));const a=achievements.find(x=>x.id===id);if(a)showTip("🏆 成就解锁："+a.name+"！");}}
+function loadAchievements(){const u=JSON.parse(localStorage.getItem("mushAchievements")||"[]");let h="";achievements.forEach(a=>{const g=u.includes(a.id);h+='<div class="achievement-card '+(g?'got':'locked')+'"><div style="font-size:28px">'+(g?'🏆':'🔒')+'</div><div><div style="font-weight:bold">'+a.name+'</div><div style="font-size:13px;opacity:.8">'+a.desc+'</div></div></div>';});document.getElementById("achievementList").innerHTML=h;showScreen("achievement");}
+let isLightMode=localStorage.getItem("mushTheme")==="light";
+function refreshBackground(){bgLayerDom.classList.remove("load-show");if(isLightMode){document.body.classList.add("light-mode");themeBtn.innerText="切换深色模式";themeInGameBtn.innerText="切换深色模式";}else{document.body.classList.remove("light-mode");themeBtn.innerText="切换浅色模式";themeInGameBtn.innerText="切换浅色模式";}setTimeout(()=>bgLayerDom.classList.add("load-show"),150);}
+themeBtn.onclick=function(){isLightMode=!isLightMode;localStorage.setItem("mushTheme",isLightMode?"light":"dark");refreshBackground();};
+themeInGameBtn.onclick=function(){isLightMode=!isLightMode;localStorage.setItem("mushTheme",isLightMode?"light":"dark");refreshBackground();};
+refreshBackground();
+const ruleFullText="1. 采集可食用蘑菇获得分数，靠近毒蘑菇持续扣血\n2. 松茸、鸡枞、羊肚菌、黑牛肝菌等云南野生菌均可安全采集\n3. 不同毒蘑菇拾取扣血量不同，剧毒菌类伤害极高！\n4. 静止时缓慢回血，采集可食用蘑菇短时间加快回血并恢复大量体力\n5. 手机端用虚拟摇杆触屏操控，PC端用WASD键盘移动\n6. 河流区域移动变慢，水流会持续向下推动角色\n7. 灰色禁区内河流更多，河边有蚂蝗，树下可能藏有毒蛇；禁区关闭时若在里面会被强制传送出来并扣20血，NPC也不能进入\n8. 商店购买花露水解除蚂蝗毒、血清解除毒蛇毒素\n9. 采集可食用蘑菇时有概率掉落蘑菇菌包，拾取直接+5菌币\n10. 山里偶尔会遇到赶山人，他会在山里四处走动采蘑菇，靠近他可以用蘑菇兑换更多菌币，也能便宜买道具\n11. NPC助手会帮你吃毒蘑菇，还会说各种骚话\n⚠️灰花纹鹅膏、秋盔孢伞、肉褐鳞小伞均为致命毒菌，野外千万不要采食！\n⚠️小心泥石流（碰撞扣15血）！";
+let saveData=JSON.parse(localStorage.getItem("mushSaveData"))||null;
+if(!saveData){saveData={coin:200,levelHp:0,levelRange:0,levelSpeed:0,itemBag:{repellent:0,antidote:0,guide:0,shate:0}};localStorage.setItem("mushSaveData",JSON.stringify(saveData));}
+if(!saveData.itemBag)saveData.itemBag={repellent:0,antidote:0,guide:0,shate:0};
+if(!saveData.itemBag.shate)saveData.itemBag.shate=0;
+const localRankData=JSON.parse(localStorage.getItem("mushRank")||"[]");
+if(accountSyncEnabled){if(accountState.money!==null)saveData.coin=accountState.money;if(accountState.scores.length)localStorage.setItem("mushRank",JSON.stringify(accountState.scores));else localRankData.forEach(syncAccountScore);}
+function saveSaveData(){localStorage.setItem("mushSaveData",JSON.stringify(saveData));homeCoinText.innerText=saveData.coin;shopCoinText.innerText=saveData.coin;queueAccountSync({money:saveData.coin});}
+saveSaveData();
+let itemBag=saveData.itemBag;
+function detectPlatform(){return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)?"mobile":"pc";}
+let gameSetting=JSON.parse(localStorage.getItem("mushGameSetting"))||{difficulty:2,trackEnabled:false,mushroomSpread:false,platform:detectPlatform(),npcEnabled:false,npcName:"老王"};
+if(!gameSetting.platform)gameSetting.platform=detectPlatform();
+if(gameSetting.npcEnabled===undefined)gameSetting.npcEnabled=false;
+if(!gameSetting.npcName)gameSetting.npcName="老王";
+function saveGameSetting(){localStorage.setItem("mushGameSetting",JSON.stringify(gameSetting));}
+function refreshSettingUI(){diffSlider.value=gameSetting.difficulty;diffText.innerText=gameSetting.difficulty<=1?"简单":(gameSetting.difficulty>=3?"困难":"普通");trackText.innerText=gameSetting.trackEnabled?"是":"否";spreadText.innerText=gameSetting.mushroomSpread?"是":"否";const pc=gameSetting.platform==="pc";platformText.innerText=pc?"PC端":"手机端";platformToggleBtn.innerText=pc?"切换为手机端":"切换为 PC 端";npcText.innerText=gameSetting.npcEnabled?("有（"+gameSetting.npcName+"）"):"无";npcToggleBtn.innerText=gameSetting.npcEnabled?"关闭 NPC":"开启 NPC";npcSelectWrap.style.display=gameSetting.npcEnabled?"block":"none";document.querySelectorAll(".npc-select-btn").forEach(b=>b.classList.toggle("active",b.dataset.npc===gameSetting.npcName));}
+refreshSettingUI();
+function getDiffMultiplier(){return gameSetting.difficulty<=1?0.6:(gameSetting.difficulty>=3?1.5:1);}
+let gameRunning=false,selectedTerrain="mixed";
+let player={x:0,y:0,hp:100,maxHp:100,stamina:100,maxStamina:100,speed:3.3};
+const PLAYER_SPEED_LAND=3.3,PLAYER_SPEED_RIVER=2.5,PLAYER_SPEED_EXHAUST=1.0,RIVER_PUSH_SPEED=0.35;
+let camera={x:0,y:0},MAP_SCALE=20,mapW,mapH;
+let mushrooms=[],trees=[],rainEnabled=false,rainList=[],score=0;
+let healTimer=0,tipTimer=0,inventory={},autoSpawnTimer=0,nextSpawnDelay=5000;
+const SPAWN_DELAY_SUNNY=5000,SPAWN_DELAY_RAIN=3000;
+let poisonDamageTimer=0,collectMushCount=0,boostHealTimer=0;
+const BASE_HEAL_RATE=0.03,BOOST_HEAL_RATE=0.08,BOOST_DURATION=300;
+const SECRET_ZONE_OPEN_SECONDS=210,SECRET_DENSITY_MULTIPLE=2.5;
+const secretZone={x:0,y:0,w:2600,h:1400};
+let rivers=[],riverAnimOffset=0,debrisStaticList=[],DEBRIS_DAMAGE=15,SPAWN_SAFE_DISTANCE=350;
+let spreadTimer=0,leeches=[],snakes=[],spawnBagList=[];
+let poisonState={leech:false,snake:false,snakeTimer:0};
+let leechShieldUntil=0,leechKillActive=false;
+const SPREAD_INTERVAL=15000,SPREAD_CHANCE=0.25,BAG_EXPIRE_FRAMES=1800;
+const NPC_MIN_DIST=50,NPC_SPEED=2.2,NPC_PULL_DIST=320,NPC_EAT_RANGE=85,NPC_EAT_COOLDOWN=20;
+const mushroomTypes=[
+{name:"鸡油菌",safe:true,capColor:"#FFB300",capLight:"#FFCC00",stemColor:"#FFF8DC",spotColor:"#FF8F00",radius:16,value:10},
+{name:"青头菌",safe:true,capColor:"#4CAF50",capLight:"#81C784",stemColor:"#E8F5E9",spotColor:"#2E7D32",radius:17,value:12},
+{name:"美味蜡伞",safe:true,capColor:"#FFCCBC",capLight:"#FFE0B2",stemColor:"#FFF8E1",spotColor:"#FFAB91",radius:15,value:11},
+{name:"干巴菌",safe:true,capColor:"#5D4037",capLight:"#8D6E63",stemColor:"#D7CCC8",spotColor:"#3E2723",radius:14,value:14},
+{name:"松露菌",safe:true,capColor:"#3E2723",capLight:"#5D4037",stemColor:"#4E342E",spotColor:"#8D6E63",radius:13,value:13},
+{name:"奶浆菌",safe:true,capColor:"#FFAB91",capLight:"#FFCCBC",stemColor:"#FFF3E0",spotColor:"#FF8A65",radius:16,value:9},
+{name:"牛肝菌",safe:true,capColor:"#795548",capLight:"#A1887F",stemColor:"#EFEBE9",spotColor:"#4E342E",radius:18,value:12},
+{name:"石灰菌",safe:true,capColor:"#ECEFF1",capLight:"#FFFFFF",stemColor:"#FAFAFA",spotColor:"#CFD8DC",radius:13,value:8},
+{name:"珊瑚菌",safe:true,capColor:"#FF6666",capLight:"#FF9999",stemColor:"#FFE6E6",spotColor:"#CC3333",radius:14,value:10},
+{name:"鸡枞",safe:true,capColor:"#8D6E63",capLight:"#BCAAA4",stemColor:"#EFEBE9",spotColor:"#5D4037",radius:15,value:11},
+{name:"香菇",safe:true,capColor:"#6D4C41",capLight:"#8D6E63",stemColor:"#D7CCC8",spotColor:"#4E342E",radius:15,value:9},
+{name:"平菇",safe:true,capColor:"#CFD8DC",capLight:"#ECEFF1",stemColor:"#FAFAFA",spotColor:"#90A4AE",radius:16,value:10},
+{name:"竹荪",safe:true,capColor:"#FFCC80",capLight:"#FFE0B2",stemColor:"#FFF8E1",spotColor:"#FF9800",radius:15,value:14},
+{name:"红葱菌",safe:true,capColor:"#E65100",capLight:"#FF9800",stemColor:"#FFF3E0",spotColor:"#BF360C",radius:16,value:13},
+{name:"黑牛肝菌",safe:true,capColor:"#4A3728",capLight:"#6D4C41",stemColor:"#3E2723",spotColor:"#2C1810",radius:17,value:15},
+{name:"亚靛蓝乳菇",safe:true,capColor:"#03A9F4",capLight:"#4FC3F7",stemColor:"#E1F5FE",spotColor:"#0288D1",radius:15,value:11},
+{name:"羊肚菌",safe:true,capColor:"#8D6E63",capLight:"#A1887F",stemColor:"#D7CCC8",spotColor:"#5D4037",radius:14,value:16},
+{name:"马勃菌",safe:true,capColor:"#9E9E9E",capLight:"#BDBDBD",stemColor:"#F5F5F5",spotColor:"#757575",radius:18,value:12},
+{name:"见手青",safe:true,capColor:"#FF5722",capLight:"#FF8A65",stemColor:"#FFCCBC",spotColor:"#E64A19",radius:17,value:12},
+{name:"松茸",safe:true,capColor:"#917962",capLight:"#b8a28c",stemColor:"#e8dfd5",spotColor:"#634e3b",radius:18,value:18},
+{name:"鸡枞菌",safe:true,capColor:"#b59678",capLight:"#d4bc9e",stemColor:"#f1e9dd",spotColor:"#7d624b",radius:16,value:15},
+{name:"白牛肝",safe:true,capColor:"#a0846c",capLight:"#c9b49f",stemColor:"#efe6dd",spotColor:"#6b5340",radius:18,value:14},
+{name:"虎掌菌",safe:true,capColor:"#3a3129",capLight:"#5c5044",stemColor:"#948472",spotColor:"#221c17",radius:17,value:17},
+{name:"红奶浆",safe:true,capColor:"#d16b6b",capLight:"#e99292",stemColor:"#f9dddd",spotColor:"#a03e3e",radius:15,value:11},
+{name:"扫把菌",safe:true,capColor:"#e6992e",capLight:"#ffbc52",stemColor:"#fff0d9",spotColor:"#b47014",radius:14,value:12},
+{name:"云南松露",safe:true,capColor:"#2e241e",capLight:"#4b3c32",stemColor:"#5c4b3f",spotColor:"#19130f",radius:13,value:19},
+{name:"喇叭菌",safe:true,capColor:"#707070",capLight:"#9c9c9c",stemColor:"#d0d0d0",spotColor:"#474747",radius:15,value:13},
+{name:"米汤菌",safe:true,capColor:"#c8a8c2",capLight:"#ddc8d8",stemColor:"#f3e8f0",spotColor:"#967890",radius:14,value:10},
+{name:"白葱牛肝",safe:true,capColor:"#d47838",capLight:"#eb9e63",stemColor:"#ffe8d6",spotColor:"#a4551c",radius:16,value:14},
+{name:"铜绿菌",safe:true,capColor:"#a35c78",capLight:"#c486a0",stemColor:"#f2dde4",spotColor:"#703b50",radius:13,value:9},
+{name:"皮条菌",safe:true,capColor:"#e2c49c",capLight:"#efd9b7",stemColor:"#fff3e0",spotColor:"#b89262",radius:14,value:11},
+{name:"野生竹荪",safe:true,capColor:"#f2d098",capLight:"#f9ddb3",stemColor:"#fff6e4",spotColor:"#d4a666",radius:15,value:15},
+{name:"黄赖头",safe:true,capColor:"#cc9436",capLight:"#e6b35c",stemColor:"#fff1d8",spotColor:"#94691f",radius:16,value:13},
+{name:"桂花菌",safe:true,capColor:"#e6d282",capLight:"#f2e3a8",stemColor:"#fff9dd",spotColor:"#b89f44",radius:12,value:12},
+{name:"毒蝇伞",safe:false,capColor:"#D32F2F",capLight:"#E53935",stemColor:"#FFEBEE",spotColor:"#FFFFFF",radius:18,collectDamage:22,damage:0.07,aura:34},
+{name:"白毒伞",safe:false,capColor:"#E8F5E9",capLight:"#FFFFFF",stemColor:"#FAFFFA",spotColor:"#C8E6C9",radius:16,collectDamage:32,damage:0.09,aura:36},
+{name:"毒红菇",safe:false,capColor:"#C2185B",capLight:"#EC407A",stemColor:"#FCE4EC",spotColor:"#880E4F",radius:15,collectDamage:16,damage:0.06,aura:30},
+{name:"鹿花菌",safe:false,capColor:"#6D4C41",capLight:"#8D6E63",stemColor:"#D7CCC8",spotColor:"#4E342E",radius:16,collectDamage:24,damage:0.07,aura:32},
+{name:"赭红丝膜菌",safe:false,capColor:"#BF360C",capLight:"#E64A19",stemColor:"#FFCCBC",spotColor:"#870000",radius:14,collectDamage:18,damage:0.06,aura:28},
+{name:"毒鹅膏",safe:false,capColor:"#004D40",capLight:"#00695C",stemColor:"#E0F2F1",spotColor:"#003D33",radius:16,collectDamage:35,damage:0.10,aura:40},
+{name:"毒粉褶菌",safe:false,capColor:"#AD1457",capLight:"#C2185B",stemColor:"#FCE4EC",spotColor:"#880E4F",radius:15,collectDamage:20,damage:0.08,aura:35},
+{name:"秋盔孢伞",safe:false,capColor:"#5D4037",capLight:"#795548",stemColor:"#EFEBE9",spotColor:"#3E2723",radius:14,collectDamage:30,damage:0.07,aura:30},
+{name:"灰花纹鹅膏",safe:false,capColor:"#424242",capLight:"#757575",stemColor:"#EEEEEE",spotColor:"#212121",radius:17,collectDamage:35,damage:0.10,aura:38},
+{name:"肉褐鳞小伞",safe:false,capColor:"#b89c8c",capLight:"#d9c8bc",stemColor:"#f0e6e0",spotColor:"#704e3f",radius:13,collectDamage:33,damage:0.09,aura:32},
+{name:"大青褶伞",safe:false,capColor:"#e8e2dd",capLight:"#f7f3f0",stemColor:"#faf6f2",spotColor:"#9c8473",radius:20,collectDamage:14,damage:0.05,aura:36},
+{name:"苦马肝",safe:false,capColor:"#8c6b55",capLight:"#b0927a",stemColor:"#d4bcac",spotColor:"#5e4433",radius:16,collectDamage:17,damage:0.06,aura:31}
+];
+const terrainRate={mixed:1,pine:1.3,wet:1.1,dry:0.6};
+function bindButton(btn,fn){const cb=function(e){e.preventDefault();const now=Date.now();if(now-lastClickTime<btnCoolDown)return;lastClickTime=now;fn();};btn.onclick=cb;btn.addEventListener("touchend",cb,{passive:false});}
+const typeTextDom=document.getElementById("typeText");let charIndex=0;
+function typeWrite(){if(charIndex<"捡蘑菇模拟器，浏览器里都能捡蘑菇".length){typeTextDom.innerText+="捡蘑菇模拟器，浏览器里都能捡蘑菇"[charIndex++];setTimeout(typeWrite,80);}}typeWrite();
+let ruleTyping=false;
+function runRuleTypeWriter(){if(ruleTyping)return;ruleTyping=true;ruleContent.innerText="";let idx=0;function w(){if(idx<ruleFullText.length){ruleContent.innerText+=ruleFullText[idx++];setTimeout(w,55);}else ruleTyping=false;}w();}
+bindButton(document.getElementById("startGameBtn"),()=>showScreen("terrain"));
+bindButton(document.getElementById("backHomeBtn"),()=>showScreen("home"));
+bindButton(document.getElementById("ruleBtn"),()=>{showScreen("rule");runRuleTypeWriter();});
+bindButton(document.getElementById("closeRule"),()=>showScreen("home"));
+bindButton(document.getElementById("rankBtn"),()=>loadRankData());
+bindButton(document.getElementById("closeRank"),()=>showScreen("home"));
+bindButton(document.getElementById("achievementBtn"),()=>loadAchievements());
+bindButton(document.getElementById("closeAchievement"),()=>showScreen("home"));
+bindButton(document.getElementById("enterMountainBtn"),startGameScene);
+bindButton(document.getElementById("safeRestartBtn"),startGameScene);
+bindButton(document.getElementById("safeGoHomeBtn"),()=>{resetGameUI();showScreen("home");});
+bindButton(document.getElementById("reviveBtn"),startGameScene);
+bindButton(document.getElementById("deathGoHomeBtn"),()=>{resetGameUI();showScreen("home");});
+bindButton(safeReturnBtn,()=>{if(!gameRunning)return;let fs=score;const gc=Math.ceil(fs/10);saveData.coin+=gc;saveSaveData();stats.totalCoin+=gc;saveStats();if(stats.totalCoin>=100)unlockAchievement("rich");unlockAchievement("safe_return");saveRankData(fs);safeScoreResult.innerText="本次采集总分："+fs+"\n兑换得到 "+gc+" 菌币！";resetGameUI();showScreen("safeEnd");});
+function resetGameUI(){gameRunning=false;rainEnabled=false;rainSwitchBtn.innerText="开启下雨";rainList=[];joystick.style.display="none";gameUI.style.display="none";bagPanel.classList.remove("show");gameSettingsMenu.style.display="none";npcTipEl.style.opacity="0";themeBtn.style.display="";tradeBtn.style.display="none";tradePanel.classList.remove("show");traderNotice.style.display="none";clearTimeout(traderNoticeTimer);guidePanel.classList.remove("show");leechShieldUntil=0;leechKillActive=false;}
+function toggleRain(){if(!gameRunning)return;rainEnabled=!rainEnabled;rainSwitchBtn.innerText=rainEnabled?"关闭下雨":"开启下雨";nextSpawnDelay=rainEnabled?SPAWN_DELAY_RAIN:SPAWN_DELAY_SUNNY;}
+bindButton(rainSwitchBtn,toggleRain);
+bindButton(document.getElementById("bagBtn"),()=>{if(!gameRunning)return;openBag();});
+bindButton(document.getElementById("closeBag"),()=>bagPanel.classList.remove("show"));
+bindButton(document.getElementById("shopHomeBtn"),()=>shopPanel.classList.add("show"));
+bindButton(document.getElementById("closeShopBtn"),()=>shopPanel.classList.remove("show"));
+bindButton(document.getElementById("settingHomeBtn"),()=>settingPanel.classList.add("show"));
+bindButton(document.getElementById("closeSettingBtn"),()=>settingPanel.classList.remove("show"));
+bindButton(platformToggleBtn,()=>{gameSetting.platform=gameSetting.platform==="pc"?"mobile":"pc";saveGameSetting();refreshSettingUI();});
+diffSlider.addEventListener("input",()=>{gameSetting.difficulty=Number(diffSlider.value);saveGameSetting();refreshSettingUI();});
+bindButton(trackToggleBtn,()=>{gameSetting.trackEnabled=!gameSetting.trackEnabled;saveGameSetting();refreshSettingUI();});
+bindButton(spreadToggleBtn,()=>{gameSetting.mushroomSpread=!gameSetting.mushroomSpread;saveGameSetting();refreshSettingUI();});
+bindButton(npcToggleBtn,()=>{gameSetting.npcEnabled=!gameSetting.npcEnabled;saveGameSetting();refreshSettingUI();});
+document.querySelectorAll(".npc-select-btn").forEach(b=>b.addEventListener("click",()=>{gameSetting.npcName=b.dataset.npc;saveGameSetting();refreshSettingUI();}));
+bindButton(settingsGearBtn,()=>{gameSettingsMenu.style.display=gameSettingsMenu.style.display==="none"?"flex":"none";});
+bindButton(tradeBtn,openTradePanel);
+bindButton(closeTradeBtn,()=>tradePanel.classList.remove("show"));
+document.querySelectorAll(".buyBtn").forEach(btn=>bindButton(btn,()=>{const t=btn.dataset.up,pm={hp:50,range:45,speed:35},ml={hp:7,range:4,speed:4},k="level"+t[0].toUpperCase()+t.slice(1);if(saveData[k]>=ml[t]){alert("已经达到最高等级！");return;}if(saveData.coin>=pm[t]){saveData.coin-=pm[t];saveData[k]+=1;saveSaveData();alert("购买成功！属性下次进山生效");}else alert("菌币不足！");}));
+document.querySelectorAll(".buyItemBtn").forEach(btn=>bindButton(btn,()=>{const it=btn.dataset.item,pm={repellent:25,antidote:40,guide:30,shate:65},p=pm[it];if(it==="guide"&&itemBag.guide>=1){alert("你已经拥有一本蘑菇说明书了！");return;}if(saveData.coin>=p){saveData.coin-=p;itemBag[it]+=1;saveSaveData();alert("购买成功！");}else alert("菌币不足！");}));
+document.querySelectorAll(".terrain-btn").forEach(btn=>{const sel=function(e){if(e)e.preventDefault();selectedTerrain=btn.dataset.terrain;document.querySelectorAll(".terrain-btn").forEach(b=>b.classList.remove("selected"));btn.classList.add("selected");};btn.addEventListener("click",sel);btn.addEventListener("touchend",sel,{passive:false});});
+function openBag(){bagPanel.classList.add("show");let h="",mh="",empty=true;for(let n in inventory){empty=false;mh+='<div class="item-row"><span>🍄 '+n+'</span><span>×'+inventory[n]+'</span></div>';}if(empty)mh='<div class="item-row" style="opacity:0.6">暂无采集到的蘑菇</div>';h+=mh+'<hr style="margin:10px 0;opacity:0.3">';const rd=itemBag.repellent<=0?"disabled":"",ad=itemBag.antidote<=0?"disabled":"",sd=itemBag.shate<=0?"disabled":"",gd=itemBag.guide<=0?"disabled":"";h+='<div class="item-row"><span>🧪 花露水 ×'+itemBag.repellent+'</span><button class="btn btn-yellow use-item-btn" data-use="repellent" '+rd+'>使用</button></div>';h+='<div class="item-row"><span>💉 血清 ×'+itemBag.antidote+'</span><button class="btn btn-blue use-item-btn" data-use="antidote" '+ad+'>使用</button></div>';h+='<div class="item-row"><span>🧪 杀蚂特 ×'+itemBag.shate+'</span><button class="btn btn-green use-item-btn" data-use="shate" '+sd+'>使用</button></div>';h+='<div class="item-row"><span>📖 说明书 ×'+itemBag.guide+'</span><button class="btn btn-green use-item-btn" data-use="guide" '+gd+'>使用</button></div>';bagList.innerHTML=h;}
+bagList.addEventListener("click",e=>{const b=e.target.closest("[data-use]");if(!b||b.disabled)return;const it=b.dataset.use;if(it==="repellent"){if(itemBag.repellent<=0)return;itemBag.repellent--;poisonState.leech=false;player.hp=Math.min(player.maxHp,player.hp+15);saveSaveData();showTip("使用花露水：解除蚂蝗毒，恢复15血！");openBag();}else if(it==="antidote"){if(itemBag.antidote<=0)return;itemBag.antidote--;poisonState.snake=false;poisonState.snakeTimer=0;player.hp=Math.min(player.maxHp,player.hp+35);saveSaveData();showTip("使用血清：解除蛇毒，恢复35血！");openBag();}else if(it==="shate"){if(itemBag.shate<=0)return;itemBag.shate--;poisonState.leech=false;leechShieldUntil=Date.now()+150000;leechKillActive=Math.random()<0.5;saveSaveData();showTip("使用杀蚂特：2分30秒内免疫蚂蝗叮咬并解除蚂蝗毒！"+(leechKillActive?"杀蚂特效激活，靠近蚂蝗可将其消灭！":""));openBag();}else if(it==="guide"){openGuide();}});
+function getMushroomCoinValue(name){const t=mushroomTypes.find(m=>m.name===name);if(!t||!t.safe)return 0;return Math.ceil(t.value/10*tradeRate);}
+function refreshTradeList(){tradeCoinText.innerText=saveData.coin;let h='<h3>🍄 蘑菇兑换（本局倍率×'+tradeRate+'）</h3>';let any=false;for(let name in inventory){const t=mushroomTypes.find(m=>m.name===name);if(!t||!t.safe)continue;any=true;const val=getMushroomCoinValue(name),total=val*inventory[name];h+='<div class="shop-item"><span>🍄 '+name+' ×'+inventory[name]+'</span><button class="btn btn-green" data-exchange="'+name+'" style="width:auto;padding:8px 14px;margin:0;font-size:14px">换'+total+'币</button></div>';}if(!any)h+='<p style="opacity:0.6;padding:8px 0">背包里没有可兑换的蘑菇</p>';h+='<h3>🛒 道具购买（比商店便宜）</h3>';h+='<div class="shop-item"><span>🧪 花露水（解蚂蝗毒）</span><button class="btn btn-green" data-buy="repellent" style="width:auto;padding:8px 14px;margin:0;font-size:14px">'+traderPrices.repellent+'币</button></div>';h+='<div class="shop-item"><span>💉 血清（解蛇毒）</span><button class="btn btn-green" data-buy="antidote" style="width:auto;padding:8px 14px;margin:0;font-size:14px">'+traderPrices.antidote+'币</button></div>';h+='<div class="shop-item"><span>🧪 杀蚂特（2分30秒免疫蚂蝗）</span><button class="btn btn-green" data-buy="shate" style="width:auto;padding:8px 14px;margin:0;font-size:14px">'+traderPrices.shate+'币</button></div>';tradeList.innerHTML=h;}
+function openTradePanel(){refreshTradeList();tradePanel.classList.add("show");}
+tradeList.addEventListener("click",e=>{const ex=e.target.closest("[data-exchange]");if(ex){exchangeMushroom(ex.dataset.exchange);return;}const by=e.target.closest("[data-buy]");if(by){buyFromTrader(by.dataset.buy);return;}});
+function exchangeMushroom(name){if(!inventory[name]||inventory[name]<=0)return;const total=getMushroomCoinValue(name)*inventory[name];if(total<=0)return;saveData.coin+=total;stats.totalCoin+=total;saveStats();if(stats.totalCoin>=100)unlockAchievement("rich");inventory[name]=0;delete inventory[name];saveSaveData();showTip("赶山人：好货！给你"+total+"菌币！");refreshTradeList();}
+function buyFromTrader(item){const price=traderPrices[item];if(saveData.coin<price){showTip("菌币不够！");return;}saveData.coin-=price;itemBag[item]+=1;saveSaveData();showTip("赶山人：拿着，下次再来！");refreshTradeList();}
+function showTraderNotice(hasTrader){traderNotice.innerText=hasTrader?"🏔️ 本局有跑山人！\n他会四处走动采蘑菇，靠近他可以用蘑菇换更多菌币、便宜买道具！":"本局没有跑山人";traderNotice.style.display="block";clearTimeout(traderNoticeTimer);traderNoticeTimer=setTimeout(()=>traderNotice.style.display="none",1000);}
+let spreadQuest=null;
+function createSpreadQuest(){const st=mushroomTypes.filter(m=>m.safe),r=Math.random();if(r<0.5){const t=st[Math.floor(Math.random()*st.length)],n=2+Math.floor(Math.random()*4);spreadQuest={title:"采集 "+t.name,items:[{name:t.name,target:n,progress:0}],reward:10,completed:false};}else{const t1=st[Math.floor(Math.random()*st.length)];let t2=st[Math.floor(Math.random()*st.length)],g=0;while(t2.name===t1.name&&g<20){t2=st[Math.floor(Math.random()*st.length)];g++;}spreadQuest={title:"采集 "+t1.name+" 和 "+t2.name,items:[{name:t1.name,target:1+Math.floor(Math.random()*3),progress:0},{name:t2.name,target:1+Math.floor(Math.random()*3),progress:0}],reward:10,completed:false};}updateSpreadQuestUI();}
+function updateSpreadQuestUI(){if(!spreadQuest){questTitle.innerText="📋 暂无任务";spreadQuestText.innerText="0/0";spreadQuestBar.style.width="0%";spreadQuestDesc.innerText="等待新任务...";return;}questTitle.innerText="📋 "+spreadQuest.title;let tp=0,tt=0;for(let it of spreadQuest.items){tp+=it.progress;tt+=it.target;}spreadQuestText.innerText="任务值："+tp+" / 完成值："+tt;spreadQuestBar.style.width=Math.min(100,tp/tt*100)+"%";let d="";for(let i=0;i<spreadQuest.items.length;i++){const it=spreadQuest.items[i];d+="采集 "+it.name+"："+it.progress+"/"+it.target;if(i<spreadQuest.items.length-1)d+="　";}if(spreadQuest.completed)d+=" ✅已完成";spreadQuestDesc.innerText=d;}
+function onCollectForQuest(name){if(!spreadQuest||spreadQuest.completed)return;for(let it of spreadQuest.items){if(it.name===name&&it.progress<it.target){it.progress++;break;}}let all=true;for(let it of spreadQuest.items){if(it.progress<it.target)all=false;}updateSpreadQuestUI();if(all&&!spreadQuest.completed){spreadQuest.completed=true;saveData.coin+=10;saveSaveData();stats.totalCoin+=10;saveStats();if(stats.totalCoin>=100)unlockAchievement("rich");unlockAchievement("quest_done");showTip("📋采集任务完成！获得10菌币！");setTimeout(()=>{if(gameRunning)createSpreadQuest();},2500);}}
+function pointInSecretZone(px,py){return px>=secretZone.x&&px<=secretZone.x+secretZone.w&&py>=secretZone.y&&py<=secretZone.y+secretZone.h;}
+function pointInRiver(px,py){for(let river of rivers){const path=river.path,w=river.width;for(let i=0;i<path.length-1;i++){const p1=path[i],p2=path[i+1],A=px-p1.x,B=py-p1.y,C=p2.x-p1.x,D=p2.y-p1.y,dot=A*C+B*D,lenSq=C*C+D*D;let param=lenSq!==0?dot/lenSq:-1,xx,yy;if(param<0){xx=p1.x;yy=p1.y;}else if(param>1){xx=p2.x;yy=p2.y;}else{xx=p1.x+param*C;yy=p1.y+param*D;}if(Math.hypot(px-xx,py-yy)<w/2)return true;}}return false;}
+function startGameScene(){mapW=canvas.width*MAP_SCALE;mapH=canvas.height*MAP_SCALE;player.x=mapW/2;player.y=mapH/2;player.maxHp=100+saveData.levelHp*25;player.hp=player.maxHp;player.maxStamina=100;player.stamina=player.maxStamina;player.speed=PLAYER_SPEED_LAND+saveData.levelSpeed*0.4;score=0;mushrooms=[];trees=[];leeches=[];snakes=[];spawnBagList=[];rainList=[];rainEnabled=false;rainSwitchBtn.innerText="开启下雨";inventory={};autoSpawnTimer=0;nextSpawnDelay=SPAWN_DELAY_SUNNY;boostHealTimer=0;poisonDamageTimer=0;riverAnimOffset=0;debrisStaticList=[];collectMushCount=0;poisonState={leech:false,snake:false,snakeTimer:0};spreadTimer=0;npcEatCooldown=0;secretZoneOpenFlag=true;leechShieldUntil=0;leechKillActive=false;trader=null;if(gameSetting.npcEnabled){let nx=player.x+100,ny=player.y-80;npc={x:nx,y:ny,name:gameSetting.npcName,targetX:nx,targetY:ny,wanderTimer:0};}else npc=null;if(Math.random()<0.3){let tx,ty,ok=false,tries=0;while(!ok&&tries<50){tx=120+Math.random()*(mapW-240);ty=120+Math.random()*(mapH-240);if(Math.hypot(tx-player.x,ty-player.y)>300)ok=true;tries++;}trader={x:tx,y:ty,name:"赶山人",targetX:tx,targetY:ty,wanderTimer:0,hp:100,maxHp:100};tradeRate=Math.random()<0.5?2:2.5;}showTraderNotice(!!trader);wasSecretZoneOpen=true;secretZone.x=mapW*0.5-secretZone.w/2;secretZone.y=mapH*0.5-secretZone.h-80;gameStartTime=Date.now();generateRivers();spawnMushrooms();spawnTrees();spawnGrayZoneCreatures();clearPoisonNearPlayer();createSpreadQuest();const dc=4+Math.floor(Math.random()*3);for(let i=0;i<dc;i++){let sx,sy,ok=false,t=0;while(!ok&&t<100){sx=120+Math.random()*(mapW-240);sy=120+Math.random()*(mapH-240);if(Math.hypot(sx-player.x,sy-player.y)>SPAWN_SAFE_DISTANCE)ok=true;t++;}debrisStaticList.push({x:sx,y:sy,size:72});}gameRunning=true;themeBtn.style.display="none";tradeBtn.style.display="none";if(gameSetting.platform==="mobile")joystick.style.display="block";else joystick.style.display="none";gameUI.style.display="block";hpText.textContent=Math.floor(player.hp);staminaText.textContent=Math.floor(player.stamina);hpBar.style.width="100%";staminaBar.style.width="100%";showScreen(null);requestAnimationFrame(gameLoop);}
+function generateRivers(){rivers=[];const rc=7,mcy=mapH/2;for(let r=0;r<rc;r++){const path=[];let by=mcy+(r-rc/2)*180+(Math.random()-0.5)*100,px=0,py=by;path.push({x:px,y:py});for(let s=0;s<12;s++){px+=180+Math.random()*220;py+=(Math.random()-0.5)*50;px=Math.max(0,Math.min(mapW,px));py=Math.max(80,Math.min(mapH-80,py));path.push({x:px,y:py});}rivers.push({path,width:28+Math.random()*18});}const ec=4;for(let r=0;r<ec;r++){const path=[];let px=secretZone.x,py=secretZone.y+60+Math.random()*(secretZone.h-120);path.push({x:px,y:py});for(let s=0;s<6;s++){px+=150+Math.random()*180;py+=(Math.random()-0.5)*70;px=Math.max(secretZone.x,Math.min(secretZone.x+secretZone.w,px));py=Math.max(secretZone.y+40,Math.min(secretZone.y+secretZone.h-40,py));path.push({x:px,y:py});}rivers.push({path,width:24+Math.random()*14});}}
+function spawnGrayZoneCreatures(){for(let river of rivers)for(let p of river.path)if(pointInSecretZone(p.x,p.y)&&Math.random()<0.4){const ox=p.x+(Math.random()-0.5)*55,oy=p.y+(Math.random()-0.5)*35;leeches.push({x:ox,y:oy,originX:ox,originY:oy});}for(let tree of trees)if(pointInSecretZone(tree.x,tree.y)&&Math.random()<0.3){const ox=tree.x+(Math.random()-0.5)*45,oy=tree.y+tree.size*0.4;snakes.push({x:ox,y:oy,originX:ox,originY:oy});}}
+function spawnTrees(){const tc=Math.floor((mapW*mapH)/32000);let loop=0;while(trees.length<tc&&loop<500){loop++;const tx=Math.random()*(mapW-100)+50,ty=Math.random()*(mapH-100)+50;let ov=false;for(let t of trees)if(Math.hypot(t.x-tx,t.y-ty)<120){ov=true;break;}if(!ov)trees.push({x:tx,y:ty,size:40+Math.random()*35});}}
+function clearPoisonNearPlayer(){for(let i=mushrooms.length-1;i>=0;i--){const m=mushrooms[i];if(!m.type.safe&&Math.hypot(m.x-player.x,m.y-player.y)<220){mushrooms.splice(i,1);spawnSingleMushroom();}}}
+function spawnMushrooms(){const bc=Math.floor(240*terrainRate[selectedTerrain]*5);for(let i=0;i<bc;i++)spawnSingleMushroom();}
+function spawnSingleMushroom(){let ov=true,mx,my,loop=0;while(ov&&loop<80){ov=false;mx=Math.random()*(mapW-80)+40;my=Math.random()*(mapH-80)+40;for(let m of mushrooms)if(Math.hypot(m.x-mx,m.y-my)<45){ov=true;break;}loop++;}mushrooms.push({x:mx,y:my,type:mushroomTypes[Math.floor(Math.random()*mushroomTypes.length)]});}
+function spawnSecretZoneMushroom(){mushrooms.push({x:secretZone.x+Math.random()*secretZone.w,y:secretZone.y+Math.random()*secretZone.h,type:mushroomTypes[Math.floor(Math.random()*mushroomTypes.length)]});}
+let joyVec={x:0,y:0},MAX_JOY_RADIUS=185;
+joystick.addEventListener("pointermove",e=>{if(!gameRunning||gameSetting.platform!=="mobile")return;const r=joystick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,d=Math.hypot(dx,dy);if(d>MAX_JOY_RADIUS){dx=dx/d*MAX_JOY_RADIUS;dy=dy/d*MAX_JOY_RADIUS;}joyVec.x=dx/MAX_JOY_RADIUS;joyVec.y=dy/MAX_JOY_RADIUS;joystickKnob.style.transform="translate(calc(-50% + "+dx+"px),calc(-50% + "+dy+"px))";});
+joystick.addEventListener("pointerup",()=>{joyVec={x:0,y:0};joystickKnob.style.transform="translate(-50%,-50%)";});
+joystick.addEventListener("pointercancel",()=>{joyVec={x:0,y:0};joystickKnob.style.transform="translate(-50%,-50%)";});
+const key={w:0,a:0,s:0,d:0};
+document.addEventListener("keydown",e=>{if(gameSetting.platform!=="pc")return;if(e.key.toLowerCase()in key)key[e.key.toLowerCase()]=1;});
+document.addEventListener("keyup",e=>{if(gameSetting.platform!=="pc")return;if(e.key.toLowerCase()in key)key[e.key.toLowerCase()]=0;});
+function drawMushroom(m){const t=m.type,s=t.radius,mx=m.x,bob=Math.sin(Date.now()*0.0025+m.x*0.08)*2.5,my=m.y+bob;if(!t.safe){ctx.beginPath();ctx.arc(mx,my,t.aura,0,Math.PI*2);ctx.fillStyle="rgba(255,80,80,0.18)";ctx.fill();}ctx.fillStyle=t.stemColor;ctx.beginPath();ctx.ellipse(mx,my+s*0.55,s*0.42,s*0.75,0,0,Math.PI*2);ctx.fill();ctx.fillStyle=t.capColor;ctx.beginPath();ctx.arc(mx,my-s*0.15,s,Math.PI,0);ctx.fill();ctx.fillStyle=t.capLight;ctx.beginPath();ctx.arc(mx,my-s*0.25,s*0.72,Math.PI,0);ctx.fill();ctx.fillStyle=t.spotColor;ctx.beginPath();ctx.arc(mx-s*0.35,my-s*0.35,s*0.18,0,Math.PI*2);ctx.arc(mx+s*0.3,my-s*0.55,s*0.14,0,Math.PI*2);ctx.arc(mx,my-s*0.6,s*0.12,0,Math.PI*2);ctx.fill();}
+function showTip(text){mushroomTip.innerText=text;mushroomTip.style.opacity="1";clearTimeout(tipTimer);tipTimer=setTimeout(()=>mushroomTip.style.opacity="0",1000);}
+function showNpcTip(text){npcTipEl.innerText=text;npcTipEl.style.opacity="1";clearTimeout(npcTipTimer);npcTipTimer=setTimeout(()=>npcTipEl.style.opacity="0",1500);}
+function updateNPC(playerMoving,zoneOpen){
+if(!npc||!gameSetting.npcEnabled)return;
+npc.wanderTimer--;
+if(npc.wanderTimer<=0){let tries=0,tx,ty,valid=false;while(!valid&&tries<10){const ang=Math.random()*Math.PI*2,d=60+Math.random()*140;tx=player.x+Math.cos(ang)*d;ty=player.y+Math.sin(ang)*d;tries++;if(Math.hypot(tx-player.x,ty-player.y)>=NPC_MIN_DIST&&(zoneOpen||!pointInSecretZone(tx,ty)))valid=true;}if(!valid){tx=player.x+100;ty=player.y;if(!zoneOpen&&pointInSecretZone(tx,ty)){tx=secretZone.x-60;ty=player.y;}}npc.targetX=tx;npc.targetY=ty;npc.wanderTimer=50+Math.floor(Math.random()*70);}
+if(Math.hypot(npc.x-player.x,npc.y-player.y)>NPC_PULL_DIST){const ang=Math.atan2(player.y-npc.y,player.x-npc.x);let tx=player.x+Math.cos(ang)*100,ty=player.y+Math.sin(ang)*100;if(!zoneOpen&&pointInSecretZone(tx,ty)){tx=secretZone.x-60;ty=player.y;}npc.targetX=tx;npc.targetY=ty;}
+const ndx=npc.targetX-npc.x,ndy=npc.targetY-npc.y,nd=Math.hypot(ndx,ndy);
+if(nd>3){npc.x+=ndx/nd*NPC_SPEED;npc.y+=ndy/nd*NPC_SPEED;}
+npc.x=Math.max(30,Math.min(mapW-30,npc.x));npc.y=Math.max(30,Math.min(mapH-30,npc.y));
+if(!zoneOpen&&pointInSecretZone(npc.x,npc.y)){npc.x=secretZone.x-50;npc.y=Math.max(80,Math.min(mapH-80,npc.y));npc.targetX=npc.x;npc.targetY=npc.y;}
+const pdist=Math.hypot(npc.x-player.x,npc.y-player.y);
+if(pdist<NPC_MIN_DIST){const ang=Math.atan2(npc.y-player.y,npc.x-player.x);const push=(NPC_MIN_DIST-pdist)*0.5;npc.x+=Math.cos(ang)*push;npc.y+=Math.sin(ang)*push;}
+if(npcEatCooldown>0)npcEatCooldown--;
+if(playerMoving&&npcEatCooldown<=0&&Math.random()<0.75){for(let i=mushrooms.length-1;i>=0;i--){const m=mushrooms[i];if(!m.type.safe&&Math.hypot(npc.x-m.x,npc.y-m.y)<NPC_EAT_RANGE){mushrooms.splice(i,1);stats.npcPoisonKills=(stats.npcPoisonKills||0)+1;saveStats();if(stats.npcPoisonKills>=10)unlockAchievement("npc_helper");npcEatCooldown=NPC_EAT_COOLDOWN;break;}}}
+}
+function updateTrader(zoneOpen){
+if(!trader)return;
+trader.wanderTimer--;
+if(trader.wanderTimer<=0){let tx,ty,tries=0,valid=false;while(!valid&&tries<20){tx=80+Math.random()*(mapW-160);ty=80+Math.random()*(mapH-160);if(Math.hypot(tx-player.x,ty-player.y)>150&&(zoneOpen||!pointInSecretZone(tx,ty)))valid=true;tries++;}if(!valid){tx=player.x+120;ty=player.y;}trader.targetX=tx;trader.targetY=ty;trader.wanderTimer=90+Math.floor(Math.random()*120);}
+if(Math.hypot(trader.x-player.x,trader.y-player.y)>400){const ang=Math.atan2(player.y-trader.y,player.x-trader.x);trader.targetX=player.x+Math.cos(ang)*150;trader.targetY=player.y+Math.sin(ang)*150;}
+const tdx=trader.targetX-trader.x,tdy=trader.targetY-trader.y,td=Math.hypot(tdx,tdy);
+if(td>3){trader.x+=tdx/td*1.5;trader.y+=tdy/td*1.5;}
+trader.x=Math.max(30,Math.min(mapW-30,trader.x));trader.y=Math.max(30,Math.min(mapH-30,trader.y));
+if(!zoneOpen&&pointInSecretZone(trader.x,trader.y)){trader.x=secretZone.x-50;trader.y=Math.max(80,Math.min(mapH-80,trader.y));trader.targetX=trader.x;trader.targetY=trader.y;}
+for(let i=mushrooms.length-1;i>=0;i--){const m=mushrooms[i],dist=Math.hypot(trader.x-m.x,trader.y-m.y);if(dist<m.type.radius+26){if(m.type.safe){mushrooms.splice(i,1);saveData.coin+=1;saveSaveData();showTip("赶山人采走了"+m.type.name+"，分你1菌币！");}else{mushrooms.splice(i,1);trader.hp-=12;showTip("赶山人踩到"+m.type.name+"，扣了12血！");}}}
+trader.hp=Math.min(trader.maxHp,trader.hp+0.02);
+if(trader.hp<=0){trader.hp=trader.maxHp;showTip("赶山人吃坏了肚子，蹲在原地缓了好一会儿");}
+}
+function gameLoop(){
+if(!gameRunning)return;
+ctx.clearRect(0,0,canvas.width,canvas.height);
+riverAnimOffset+=0.3;
+const runTimeSec=(Date.now()-gameStartTime)/1000,zoneOpen=runTimeSec<=SECRET_ZONE_OPEN_SECONDS,insideRiver=pointInRiver(player.x,player.y);
+secretZoneOpenFlag=zoneOpen;
+if(wasSecretZoneOpen&&!zoneOpen&&pointInSecretZone(player.x,player.y)){player.x=secretZone.x-80;player.y=Math.max(80,Math.min(mapH-80,player.y));player.hp-=20;showTip("灰色禁区关闭！被强制传送出来，扣20血！");}
+wasSecretZoneOpen=zoneOpen;
+if(zoneOpen&&pointInSecretZone(player.x,player.y)&&!stats.enteredSecret){stats.enteredSecret=true;saveStats();unlockAchievement("secret_zone");}
+if(player.hp<20&&!stats.wasLowHp){stats.wasLowHp=true;saveStats();}
+if(stats.wasLowHp&&player.hp>=50){unlockAchievement("survivor");stats.wasLowHp=false;saveStats();}
+let cs;if(player.stamina>=player.maxStamina-0.5)cs=insideRiver?PLAYER_SPEED_RIVER:player.speed;else if(player.stamina>0)cs=insideRiver?PLAYER_SPEED_RIVER-0.3:player.speed-0.4;else cs=insideRiver?0.9:PLAYER_SPEED_EXHAUST+saveData.levelSpeed*0.4;
+let mx=joyVec.x,my=joyVec.y;if(key.w)my-=1;if(key.s)my+=1;if(key.a)mx-=1;if(key.d)mx+=1;
+let mi=Math.hypot(joyVec.x,joyVec.y);if(key.w||key.a||key.s||key.d)mi=Math.max(mi,1);mi=Math.min(1,mi);
+const spd=Math.hypot(mx,my),playerMoving=spd>0;
+if(playerMoving){mx/=spd;const nx=player.x+mx*cs,ny=player.y+my*cs;if(!zoneOpen){if(!(nx>=secretZone.x&&nx<=secretZone.x+secretZone.w&&ny>=secretZone.y&&ny<=secretZone.y+secretZone.h)){player.x=nx;player.y=ny;}}else{player.x=nx;player.y=ny;}}
+if(insideRiver)player.y+=RIVER_PUSH_SPEED;
+player.x=Math.max(30,Math.min(mapW-30,player.x));player.y=Math.max(30,Math.min(mapH-30,player.y));
+camera.x=player.x-canvas.width/2;camera.y=player.y-canvas.height/2;
+updateNPC(playerMoving,zoneOpen);
+updateTrader(zoneOpen);
+if(trader){const td=Math.hypot(player.x-trader.x,player.y-trader.y);tradeBtn.style.display=td<70?"block":"none";}else tradeBtn.style.display="none";
+if(mi<0.05)player.stamina=Math.min(player.maxStamina,player.stamina+0.06);else if(mi>=0.4)player.stamina=Math.max(0,player.stamina-mi*0.09);
+healTimer++;let hr=BASE_HEAL_RATE;if(boostHealTimer>0){hr=BOOST_HEAL_RATE;boostHealTimer--;}if(healTimer>120){player.hp=Math.min(player.maxHp,player.hp+hr);healTimer=0;}
+autoSpawnTimer+=16;if(autoSpawnTimer>=nextSpawnDelay){spawnSingleMushroom();if(zoneOpen&&Math.random()<SECRET_DENSITY_MULTIPLE-1)spawnSecretZoneMushroom();autoSpawnTimer=0;}
+spreadTimer+=16;if(spreadTimer>=SPREAD_INTERVAL&&gameSetting.mushroomSpread){spreadTimer=0;const snap=mushrooms.slice();for(let m of snap)if(Math.random()<SPREAD_CHANCE){const ang=Math.random()*Math.PI*2,d=45+Math.random()*55,nx=m.x+Math.cos(ang)*d,ny=m.y+Math.sin(ang)*d;if(nx>40&&nx<mapW-40&&ny>40&&ny<mapH-40)mushrooms.push({x:nx,y:ny,type:m.type});}}
+poisonDamageTimer++;
+for(let i=mushrooms.length-1;i>=0;i--){const m=mushrooms[i],d=Math.hypot(player.x-m.x,player.y-m.y),cr=m.type.radius+22+saveData.levelRange*3;if(d<cr){if(m.type.safe){score+=m.type.value;inventory[m.type.name]=(inventory[m.type.name]||0)+1;boostHealTimer=BOOST_DURATION;player.stamina=Math.min(player.maxStamina,player.stamina+30);showTip("捡到了"+m.type.name+"！回血加快，体力+30！");collectMushCount++;if(collectMushCount%3===0)score+=20;if(Math.random()<0.2)spawnBagList.push({x:m.x,y:m.y,age:0});onCollectForQuest(m.type.name);stats.totalMush++;saveStats();if(stats.totalMush===1)unlockAchievement("first_mush");if(stats.totalMush>=10)unlockAchievement("mush_10");if(stats.totalMush>=50)unlockAchievement("mush_50");if(stats.totalMush>=100)unlockAchievement("mush_100");if(m.type.name==="松茸")unlockAchievement("matsutake");if(m.type.name==="羊肚菌")unlockAchievement("morel");if(rainEnabled){stats.rainMush=(stats.rainMush||0)+1;saveStats();if(stats.rainMush>=5)unlockAchievement("rain");}if(npc&&gameSetting.npcEnabled)showNpcTip("【"+npc.name+"】："+getNpcLine(npc.name));}else{player.hp-=m.type.collectDamage;showTip("啊哦，扣"+m.type.collectDamage+"血！（"+m.type.name+"有毒）");}mushrooms.splice(i,1);continue;}if(!m.type.safe&&d<m.type.aura&&poisonDamageTimer>25)player.hp-=m.type.damage;}
+if(poisonDamageTimer>25)poisonDamageTimer=0;
+const shieldOn=Date.now()<leechShieldUntil;
+for(let i=leeches.length-1;i>=0;i--){const l=leeches[i];if(shieldOn&&leechKillActive&&Math.hypot(player.x-l.x,player.y-l.y)<40){leeches.splice(i,1);showTip("杀蚂特效果：靠近的蚂蝗被消灭了！");continue;}if(gameSetting.trackEnabled){const dp=Math.hypot(player.x-l.x,player.y-l.y);if(dp<=250){const ang=Math.atan2(player.y-l.y,player.x-l.x),s=1.3*getDiffMultiplier();l.x+=Math.cos(ang)*s;l.y+=Math.sin(ang)*s;}else{const dh=Math.hypot(l.originX-l.x,l.originY-l.y);if(dh>5){const ang=Math.atan2(l.originY-l.y,l.originX-l.x);l.x+=Math.cos(ang)*0.7;l.y+=Math.sin(ang)*0.7;}}}if(shieldOn)continue;if(Math.hypot(player.x-l.x,player.y-l.y)<30){const dmg=10+Math.floor(Math.random()*6);player.hp-=dmg;poisonState.leech=true;leeches.splice(i,1);showTip("被蚂蝗叮咬！扣"+dmg+"血，持续掉血！");}}
+for(let i=snakes.length-1;i>=0;i--){const s=snakes[i];if(gameSetting.trackEnabled){const dp=Math.hypot(player.x-s.x,player.y-s.y);if(dp<=300){const ang=Math.atan2(player.y-s.y,player.x-s.x),sp=1.1*getDiffMultiplier();s.x+=Math.cos(ang)*sp;s.y+=Math.sin(ang)*sp;}else{const dh=Math.hypot(s.originX-s.x,s.originY-s.y);if(dh>5){const ang=Math.atan2(s.originY-s.y,s.originX-s.x);s.x+=Math.cos(ang)*0.7;s.y+=Math.sin(ang)*0.7;}}}if(Math.hypot(player.x-s.x,player.y-s.y)<32&&!poisonState.snake){poisonState.snake=true;poisonState.snakeTimer=5;showTip("踩到毒蛇！5秒内每秒-7血！");}}
+if(poisonState.leech)player.hp-=1.5/60;
+if(poisonState.snake){player.hp-=7/60;poisonState.snakeTimer-=1/60;if(poisonState.snakeTimer<=0)poisonState.snake=false;}
+for(let i=spawnBagList.length-1;i>=0;i--){const b=spawnBagList[i];b.age=(b.age||0)+1;if(gameSetting.mushroomSpread&&b.age>BAG_EXPIRE_FRAMES){for(let j=0;j<3+Math.floor(Math.random()*3);j++){const ang=Math.random()*Math.PI*2,dd=Math.random()*55;mushrooms.push({x:b.x+Math.cos(ang)*dd,y:b.y+Math.sin(ang)*dd,type:mushroomTypes[Math.floor(Math.random()*mushroomTypes.length)]});}spawnBagList.splice(i,1);continue;}if(Math.hypot(player.x-b.x,player.y-b.y)<38){saveData.coin+=5;saveSaveData();stats.totalCoin+=5;saveStats();if(stats.totalCoin>=100)unlockAchievement("rich");spawnBagList.splice(i,1);showTip("捡到蘑菇菌包！菌币+5！");}}
+debrisStaticList.forEach(rock=>{if(Math.hypot(player.x-rock.x,player.y-rock.y)<rock.size*0.65)player.hp-=0.045*DEBRIS_DAMAGE;});
+hpText.innerText=Math.floor(Math.max(0,player.hp));
+staminaText.innerText=Math.floor(Math.max(0,player.stamina));
+hpBar.style.width=Math.max(0,player.hp/player.maxHp*100)+"%";
+staminaBar.style.width=Math.max(0,player.stamina/player.maxStamina*100)+"%";
+if(player.hp<=0){deathGame();return;}
+ctx.save();ctx.translate(-camera.x,-camera.y);
+ctx.fillStyle="#365a36";ctx.fillRect(0,0,mapW,mapH);
+if(zoneOpen){ctx.fillStyle="rgba(220,255,120,0.12)";ctx.fillRect(secretZone.x,secretZone.y,secretZone.w,secretZone.h);ctx.strokeStyle="rgba(220,255,120,0.6)";ctx.lineWidth=3;ctx.strokeRect(secretZone.x,secretZone.y,secretZone.w,secretZone.h);}else{ctx.fillStyle="rgba(120,120,120,0.15)";ctx.fillRect(secretZone.x,secretZone.y,secretZone.w,secretZone.h);ctx.strokeStyle="rgba(180,180,180,0.4)";ctx.lineWidth=3;ctx.setLineDash([12,8]);ctx.strokeRect(secretZone.x,secretZone.y,secretZone.w,secretZone.h);ctx.setLineDash([]);}
+ctx.lineCap="round";ctx.lineJoin="round";
+rivers.forEach(river=>{ctx.beginPath();ctx.lineWidth=river.width;ctx.strokeStyle="#4288bb";ctx.moveTo(river.path[0].x,river.path[0].y);river.path.forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();ctx.beginPath();ctx.lineWidth=river.width*0.55;ctx.strokeStyle="rgba(100,180,230,0.22)";ctx.moveTo(river.path[0].x,river.path[0].y);river.path.forEach(p=>ctx.lineTo(p.x,p.y));ctx.stroke();});
+trees.forEach(tree=>{ctx.fillStyle="#6b4423";ctx.fillRect(tree.x-6,tree.y,tree.size*0.25,tree.size*0.6);ctx.fillStyle="#2d702d";ctx.beginPath();ctx.arc(tree.x,tree.y-tree.size*0.35,tree.size*0.65,0,Math.PI*2);ctx.fill();});
+mushrooms.forEach(m=>drawMushroom(m));
+ctx.font="28px serif";ctx.textAlign="center";
+leeches.forEach(l=>ctx.fillText("🕷",l.x,l.y+10));
+snakes.forEach(s=>ctx.fillText("🐍",s.x,s.y+10));
+spawnBagList.forEach(b=>ctx.fillText("🎁",b.x,b.y+10));
+ctx.textAlign="start";
+debrisStaticList.forEach(rock=>{ctx.fillStyle="#666";ctx.fillRect(rock.x-rock.size/2,rock.y-rock.size/2,rock.size,rock.size);ctx.strokeStyle="#444";ctx.lineWidth=3;ctx.strokeRect(rock.x-rock.size/2,rock.y-rock.size/2,rock.size,rock.size);});
+if(trader){const tw=40,th=5,tp=Math.max(0,trader.hp/trader.maxHp);ctx.fillStyle="rgba(0,0,0,0.5)";ctx.fillRect(trader.x-tw/2,trader.y-46,tw,th);ctx.fillStyle=tp>0.4?"#2ecc71":"#e74c3c";ctx.fillRect(trader.x-tw/2,trader.y-46,tw*tp,th);ctx.fillStyle="#e67e22";ctx.beginPath();ctx.arc(trader.x,trader.y+6,20,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ffdfc4";ctx.beginPath();ctx.arc(trader.x,trader.y-14,12,0,Math.PI*2);ctx.fill();ctx.fillStyle="#fff";ctx.font="14px system-ui";ctx.textAlign="center";ctx.fillText("赶山人",trader.x,trader.y-52);ctx.textAlign="start";}
+if(npc&&gameSetting.npcEnabled){ctx.fillStyle="#c0392b";ctx.beginPath();ctx.arc(npc.x,npc.y+6,20,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ffdfc4";ctx.beginPath();ctx.arc(npc.x,npc.y-14,12,0,Math.PI*2);ctx.fill();ctx.fillStyle="#fff";ctx.font="14px system-ui";ctx.textAlign="center";ctx.fillText(npc.name,npc.x,npc.y-32);ctx.textAlign="start";}
+ctx.fillStyle="#3478eb";ctx.beginPath();ctx.arc(player.x,player.y+6,20,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ffdfc4";ctx.beginPath();ctx.arc(player.x,player.y-14,12,0,Math.PI*2);ctx.fill();
+ctx.restore();
+if(rainEnabled){for(let r=0;r<5;r++)rainList.push({x:Math.random()*canvas.width,y:-15,vy:8+Math.random()*6,vx:-1.5+Math.random()*3,alpha:1});}
+for(let i=rainList.length-1;i>=0;i--){const r=rainList[i];r.y+=r.vy;r.x+=r.vx;if(!rainEnabled)r.alpha-=0.018;if(r.alpha<=0||r.y>canvas.height){rainList.splice(i,1);continue;}ctx.fillStyle="rgba(220,240,255,"+r.alpha+")";ctx.fillRect(r.x,r.y,2,12);}
+requestAnimationFrame(gameLoop);
+}
+function deathGame(){gameRunning=false;rainEnabled=false;rainSwitchBtn.innerText="开启下雨";rainList=[];joystick.style.display="none";gameUI.style.display="none";bagPanel.classList.remove("show");gameSettingsMenu.style.display="none";themeBtn.style.display="";tradeBtn.style.display="none";tradePanel.classList.remove("show");traderNotice.style.display="none";clearTimeout(traderNoticeTimer);guidePanel.classList.remove("show");unlockAchievement("first_death");let fs=score;const gc=Math.ceil(fs/10);saveData.coin+=gc;saveSaveData();stats.totalCoin+=gc;saveStats();if(stats.totalCoin>=100)unlockAchievement("rich");saveRankData(fs);deathScoreResult.innerText="本次采集总分："+fs+"\n兑换得到 "+gc+" 菌币！";showScreen("death");}
+function saveRankData(s){let list=JSON.parse(localStorage.getItem("mushRank")||"[]");list.push(s);list.sort((a,b)=>b-a);list=list.slice(0,8);localStorage.setItem("mushRank",JSON.stringify(list));syncAccountScore(s);}
+function loadRankData(){let list=JSON.parse(localStorage.getItem("mushRank")||"[]");let h="";if(list.length===0)h="<p>暂无记录，快去采蘑菇吧！</p>";else list.forEach((v,i)=>h+="<p>"+(i+1)+". "+v+" 分</p>");rankList.innerHTML=h;showScreen("rank");}
+</script>
+{% endblock content %}

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+ll_env/
+venv/
+.venv/
+
+# Local database and secrets
+db.sqlite3
+*.sqlite3
+.env
+.env.*
+
+# Collected static files
+staticfiles/

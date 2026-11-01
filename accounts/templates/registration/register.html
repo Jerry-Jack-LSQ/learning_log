@@ -1,0 +1,28 @@
+{% extends 'mogu/base.html' %}
+{% load django_bootstrap5 %}
+{% block title %}注册 | 捡蘑菇模拟器{% endblock title %}
+{% block content %}
+<section class="container py-5 auth-page">
+    <div class="row justify-content-center auth-layout">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+            <div class="card border-0 shadow-sm rounded-3 auth-card">
+                <div class="card-body p-4 p-md-5 auth-card-body">
+                    <div class="text-center mb-4 auth-header">
+                        <span class="badge rounded-pill text-bg-warning mb-3 auth-eyebrow">加入蘑菇森林</span>
+                        <h1 class="h3 mb-2 auth-title">创建账号</h1>
+                        <p class="text-body-secondary mb-0 auth-intro">注册后即可保存你的分数和菌币</p>
+                    </div>
+                    <form action="{% url 'account:register' %}" method="post" class="auth-form">
+                        {% csrf_token %}
+                        {% bootstrap_form form %}
+                        <button type="submit" name="submit" class="btn btn-success w-100 py-2 mt-2 auth-submit">注册</button>
+                    </form>
+                    <p class="text-center text-body-secondary small mt-4 mb-0 auth-switch">
+                        已经有账号？ <a class="link-success fw-semibold" href="{% url 'account:login' %}">前往登录</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock content %}

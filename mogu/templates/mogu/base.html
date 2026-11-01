@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}捡蘑菇模拟器{% endblock title %}</title>
+    {% load django_bootstrap5 static %}
+    {% bootstrap_css %}
+    <link rel="stylesheet" href="{% static 'mogu/site.css' %}">
+    <style>
+        .site-sidebar-toggle {
+            position: fixed;
+            top: 5.75rem;
+            left: 0;
+            z-index: 10005;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            min-width: 3.2rem;
+            min-height: 3.4rem;
+            padding: .5rem .8rem .5rem .7rem;
+            border: 1px solid rgba(255,255,255,.45);
+            border-left: 0;
+            border-radius: 0 .8rem .8rem 0;
+            background: rgba(18, 58, 43, .96);
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(16, 38, 28, .28);
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .site-sidebar-toggle .site-sidebar-toggle-icon {
+            position: relative;
+            display: block;
+            width: 1.1rem;
+            height: .8rem;
+            border-top: 2px solid currentColor;
+            border-bottom: 2px solid currentColor;
+        }
+        .site-sidebar-toggle .site-sidebar-toggle-icon::after {
+            position: absolute;
+            top: .3rem;
+            left: 0;
+            width: 100%;
+            border-top: 2px solid currentColor;
+            content: "";
+        }
+        .site-sidebar-backdrop { position: fixed; inset: 0; z-index: 10001; border: 0; background: rgba(8, 20, 13, .58); }
+        .site-sidebar-backdrop[hidden] { display: none !important; }
+        .site-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10002; width: min(86vw, 320px); height: 100vh; height: 100dvh; padding: 1.25rem; transform: translateX(-105%); visibility: hidden; overflow-y: auto; background: #173a2b; color: #fff; transition: transform .24s ease, visibility .24s ease; }
+        .site-sidebar.is-open { transform: translateX(0); visibility: visible; }
+        .site-sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,.2); }
+        .site-sidebar-brand { color: #fff; font-weight: 700; text-decoration: none; }
+        .site-sidebar-close { width: 2.5rem; height: 2.5rem; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; background: transparent; color: #fff; font-size: 1.4rem; cursor: pointer; }
+        .site-sidebar-nav { display: grid; gap: .75rem; padding-top: 1.25rem; }
+        .site-sidebar-nav p { margin: 0 0 .25rem; color: rgba(255,255,255,.78); }
+        .site-sidebar-link { display: block; padding: .8rem 1rem; border: 1px solid rgba(255,255,255,.22); border-radius: 6px; color: #fff; text-decoration: none; }
+        .site-sidebar-link-primary { border-color: #e6bb55; background: #e6bb55; color: #282316; font-weight: 700; }
+        .site-sidebar-logout { width: 100%; padding: .8rem 1rem; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; background: transparent; color: #fff; font: inherit; text-align: left; cursor: pointer; }
+        body.site-sidebar-open { overflow: hidden; }
+    </style>
+    {% block extra_head %}{% endblock extra_head %}
+</head>
+<body>
+
+    <button class="site-sidebar-toggle" id="siteSidebarToggle" type="button" aria-controls="siteSidebar" aria-expanded="false" aria-label="打开侧边栏">
+        <span class="site-sidebar-toggle-icon" aria-hidden="true"></span>
+    </button>
+    <nav class="navbar navbar-dark bg-success shadow-sm mb-0 site-navbar" style="position:relative;z-index:10">
+        <div class="container-fluid px-4 py-2 d-flex justify-content-between align-items-center site-navbar-inner">
+            <a class="navbar-brand fw-semibold site-navbar-brand" href="/">🍄 捡蘑菇模拟器</a>
+        </div>
+    </nav>
+    <button class="site-sidebar-backdrop" id="siteSidebarBackdrop" type="button" aria-label="关闭侧边栏" hidden></button>
+    <aside class="site-sidebar" id="siteSidebar" aria-label="账户菜单" aria-hidden="true">
+        <div class="site-sidebar-header">
+            <a class="site-sidebar-brand" href="/">🍄 捡蘑菇模拟器</a>
+            <button class="site-sidebar-close" id="siteSidebarClose" type="button" aria-label="关闭侧边栏">×</button>
+        </div>
+        <nav class="site-sidebar-nav" aria-label="账户导航">
+            {% if user.is_authenticated %}
+                <p>你好，{{ user.username }}</p>
+                <form action="{% url 'account:logout' %}" method="post">
+                    {% csrf_token %}
+                    <button class="site-sidebar-logout" type="submit">退出登录</button>
+                </form>
+            {% else %}
+                <a class="site-sidebar-link site-sidebar-link-primary" href="{% url 'account:login' %}">登录</a>
+                <a class="site-sidebar-link" href="{% url 'account:register' %}">注册</a>
+            {% endif %}
+        </nav>
+    </aside>
+    <div class="page-layout">
+        <main class="page-main container-fluid px-0">
+            {% block page_header %}{% endblock page_header %}
+            {% block content %}{% endblock content %}
+        </main>
+    </div>
+    <footer class="page-footer border-top bg-light text-body-secondary text-center small py-3 px-4 site-footer">
+        <p class="mb-0">捡蘑菇模拟器</p>
+    </footer>
+    {% bootstrap_javascript %}
+    <script>
+        const sidebar = document.getElementById("siteSidebar");
+        const sidebarToggle = document.getElementById("siteSidebarToggle");
+        const sidebarClose = document.getElementById("siteSidebarClose");
+        const sidebarBackdrop = document.getElementById("siteSidebarBackdrop");
+        function setSidebarOpen(open) {
+            sidebar.classList.toggle("is-open", open);
+            sidebarBackdrop.hidden = !open;
+            sidebar.setAttribute("aria-hidden", String(!open));
+            sidebarToggle.setAttribute("aria-expanded", String(open));
+            document.body.classList.toggle("site-sidebar-open", open);
+            if (open) sidebarClose.focus();
+            else sidebarToggle.focus();
+        }
+        sidebarToggle.addEventListener("click", () => setSidebarOpen(true));
+        sidebarClose.addEventListener("click", () => setSidebarOpen(false));
+        sidebarBackdrop.addEventListener("click", () => setSidebarOpen(false));
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && sidebar.classList.contains("is-open")) setSidebarOpen(false);
+        });
+    </script>
+</body>
+</html>         
